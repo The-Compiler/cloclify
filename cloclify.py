@@ -48,7 +48,7 @@ class ArgumentParser:
         self._parser.add_argument(
             'inputs',
             help='A date, time entry, or meta-information for all added entries',
-            metavar='{now|}now|{HH:MM|}HH:MM|HH:MM-HH:MM|+tag|@project|$|.date|description',
+            metavar='{now|start|}now|stop|{HH:MM|}HH:MM|HH:MM-HH:MM|+tag|@project|$|.date|description',
             nargs='*')
         self._parser.add_argument('--debug', help='Enable debug output', action='store_true')
 
@@ -131,6 +131,10 @@ class ArgumentParser:
                 self._parse_start(arg[1:])
             elif arg[0] == '}':
                 self._parse_stop(arg[1:])
+            elif arg == 'start':
+                self._parse_start('now')
+            elif arg == 'stop':
+                self._parse_stop('now')
             else:
                 self._parse_description(arg)
 
