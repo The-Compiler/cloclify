@@ -42,7 +42,11 @@ class ArgumentParser:
         self.debug = None
 
         self._parser = argparse.ArgumentParser()
-        self._parser.add_argument('inputs', help='A date or time range', nargs='*')
+        self._parser.add_argument(
+            'inputs',
+            help='A date, time entry, or meta-information for all added entries',
+            metavar='HH:MM-HH:MM|+tag|@project|$|.date|description',
+            nargs='*')
         self._parser.add_argument('--debug', help='Enable debug output', action='store_true')
 
     def _parse_timespan(self, arg):
