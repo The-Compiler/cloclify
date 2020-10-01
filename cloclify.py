@@ -102,9 +102,9 @@ class ArgumentParser:
                 self._parse_tag(arg[1:])
             elif arg[0] == '@':
                 self._parse_project(arg[1:])
-            elif arg == '$':
+            elif arg[0]  == '$':
                 self._parse_billable(arg[1:])
-            elif arg == '.':
+            elif arg[0] == '.':
                 self._parse_date(arg[1:])
             else:
                 self._parse_description(arg)
