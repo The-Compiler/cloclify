@@ -33,6 +33,48 @@ class APIError(Error):
 
 class ArgumentParser:
 
+    """Arguments are parsed based on how they look:
+
+    HH:MM-HH:MM    Add a new time entry based on the given times.
+
+    {HH:MM         "Clock in" at the given time.
+    }HH:MM         "Clock out" at the given time.
+
+    {now           Clock in now
+    start          (convenience alias)
+
+    }now           Clock out now
+    end            (convenience alias)
+
+    +tag           Add the given tag to all specified time entries.
+    @project       Set the given project for all specified time entries.
+    $              Mark all specified time entries as billable.
+
+    .date          Show/edit time entries for the given date.
+                   Can be relative (".yesterday", ".5 days ago") or absolute
+                   (".2020-10-01"). Make sure to quote spaces.
+
+    description    Any arguments without a prefix are parsed as description.
+                   Quoting is optional, as multiple arguments will be space-joined.
+
+    Examples:
+
+    $ cloclify start @qutebrowser issue1234   # Start working on a project
+    $ cloclify stop                           # Take a break
+
+    $ cloclify {12:30 @qutebrowser issue1235  # Retroactively start "stopwatch mode"
+    $ cloclify }17:00                         # Retroactively stop working
+
+    # Add a manual time entry
+    # Project: "secretproject"
+    # Tags: "collab", "external"
+    # Billable: true
+    # Date: yesterday
+    # Time: 13:00 to 17:00
+
+    $ cloclify @secretproject +collab +external $ .yesterday 13:00-17:00
+    """
+
     def __init__(self):
         self._timespans = []
         self._description = ""
@@ -44,12 +86,12 @@ class ArgumentParser:
         self.tags = []
         self.project = None
 
-        self._parser = argparse.ArgumentParser()
-        self._parser.add_argument(
-            'inputs',
-            help='A date, time entry, or meta-information for all added entries',
-            metavar='{now|start|}now|stop|{HH:MM|}HH:MM|HH:MM-HH:MM|+tag|@project|$|.date|description',
-            nargs='*')
+        self._parser = argparse.ArgumentParser(
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            description=self.__doc__
+        )
+        self._parser.add_argument('inputs', help="An argument like described above.",
+                                  metavar='input', nargs='*')
         self._parser.add_argument('--debug', help='Enable debug output', action='store_true')
 
     def _parse_time(self, time_str):
