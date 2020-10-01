@@ -118,6 +118,7 @@ class ClockifyClient:
         params = {
             'start': start.isoformat() + 'Z',
             'end': end.isoformat() + 'Z',
+            'hydrated': True,  # request full project/tag/task entries
         }
         return self._api_get(endpoint, params)
 
@@ -131,15 +132,44 @@ def print_entries(date, entries):
     console = rich.console.Console(highlight=False)
     table = rich.table.Table(title=f'Time entries for {date}', box=rich.box.ROUNDED)
 
+    table.add_column("Description", style='yellow')
     table.add_column("Start", style='cyan')
     table.add_column("End", style='cyan')
-    table.add_column("Description", style='yellow')
+    table.add_column("Project")
+    table.add_column("Tags", style='blue')
+    table.add_column("$", style='green')
 
     for entry in entries:
-        start = _parse_iso_timestamp(entry['timeInterval']['start'])
-        end = _parse_iso_timestamp(entry['timeInterval']['end'])
+        # console.print(entry, highlight=True)
+
+        data = []
+
         description = entry['description']
-        table.add_row(start.strftime('%H:%M'), end.strftime('%H:%M'), description)
+        data.append(description)
+
+        start = _parse_iso_timestamp(entry['timeInterval']['start'])
+        data.append(start.strftime('%H:%M'))
+
+        end = entry['timeInterval']['end']
+        if end is None:
+            data.append(':clock3:')
+        else:
+            data.append(_parse_iso_timestamp(end).strftime('%H:%M'))
+
+        if entry['project'] is None:
+            data.append('')
+        else:
+            proj_name = entry['project']['name']
+            proj_color = entry['project']['color']
+            data.append(f'[{proj_color}]{proj_name}[/{proj_color}]')
+
+        tags = ', '.join(tag['name'] for tag in entry['tags'])
+        data.append(tags)
+
+        billable = ':dollar:' if entry['billable'] else ''
+        data.append(billable)
+
+        table.add_row(*data)
 
     console.print(table)
 
