@@ -33,6 +33,10 @@ class APIError(Error):
 class ArgumentParser:
 
     def __init__(self):
+        self._timespans = []
+        self._description = ""
+        self._billable = False
+
         self.date = datetime.datetime.now().date()
         self.entries = []
         self.debug = None
@@ -53,7 +57,7 @@ class ArgumentParser:
         start_dt = datetime.datetime.combine(self.date, start_time)
         end_dt = datetime.datetime.combine(self.date, end_time)
 
-        self.entries.append(Entry(start_dt, end_dt))
+        self._timespans.append((start_dt, end_dt))
 
     def _parse_date(self, arg):
         if self.date != datetime.datetime.now().date():
@@ -71,7 +75,10 @@ class ArgumentParser:
         self.date = parsed.date()
 
     def _parse_description(self, arg):
-        raise UsageError("Descriptions are not supported yet")
+        if self._description:
+            self._description += ' ' + arg
+        else:
+            self._description = arg
 
     def _parse_project(self, arg):
         raise UsageError("Projects are not supported yet")
@@ -80,7 +87,9 @@ class ArgumentParser:
         raise UsageError("Tags are not supported yet")
 
     def _parse_billable(self, arg):
-        raise UsageError("Billable is not supported yet")
+        if arg:
+            raise UsageError(f"Invalid billable arg {arg}")
+        self._billable = True
 
     def parse(self, args=None):
         parsed = self._parser.parse_args(args)
@@ -94,11 +103,18 @@ class ArgumentParser:
             elif arg[0] == '@':
                 self._parse_project(arg[1:])
             elif arg == '$':
-                self._parse_billable()
+                self._parse_billable(arg[1:])
             elif arg == '.':
                 self._parse_date(arg[1:])
             else:
                 self._parse_description(arg)
+
+        self.entries = [Entry(
+            start=start_dt,
+            end=end_dt,
+            description=self._description,
+            billable=self._billable
+        ) for (start_dt, end_dt) in self._timespans]
 
 
 class ClockifyClient:
