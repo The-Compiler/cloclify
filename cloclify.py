@@ -61,7 +61,7 @@ def parse_args(args):
             date = parsed.date()
 
     if date is None:
-        date = datetime.datetime.today()
+        date = datetime.datetime.today().date()
 
     return date, timespans
 
