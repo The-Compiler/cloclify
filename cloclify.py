@@ -48,9 +48,19 @@ class ArgumentParser:
         self._parser.add_argument(
             'inputs',
             help='A date, time entry, or meta-information for all added entries',
-            metavar='HH:MM-HH:MM|+tag|@project|$|.date|description',
+            metavar='{now|}now|{HH:MM|}HH:MM|HH:MM-HH:MM|+tag|@project|$|.date|description',
             nargs='*')
         self._parser.add_argument('--debug', help='Enable debug output', action='store_true')
+
+    def _parse_time(self, time_str):
+        if time_str == 'now':
+            return datetime.datetime.now()
+
+        try:
+            time = datetime.datetime.strptime(time_str, '%H:%M').time()
+        except ValueError as e:
+            raise UsageError(str(e))
+        return datetime.datetime.combine(self.date, time)
 
     def _parse_timespan(self, arg):
         try:
@@ -58,13 +68,17 @@ class ArgumentParser:
         except ValueError:
             raise UsageError(f"Couldn't parse timespan {arg} (too many '-')")
 
-        start_time = datetime.datetime.strptime(start_str, '%H:%M').time()
-        end_time = datetime.datetime.strptime(end_str, '%H:%M').time()
-
-        start_dt = datetime.datetime.combine(self.date, start_time)
-        end_dt = datetime.datetime.combine(self.date, end_time)
-
+        start_dt = self._parse_time(start_str)
+        end_dt = self._parse_time(end_str)
         self._timespans.append((start_dt, end_dt))
+
+    def _parse_start(self, arg):
+        dt = self._parse_time(arg)
+        self._timespans.append((dt, None))
+
+    def _parse_stop(self, arg):
+        dt = self._parse_time(arg)
+        self._timespans.append((None, dt))
 
     def _parse_date(self, arg):
         if self.date != datetime.datetime.now().date():
@@ -113,6 +127,10 @@ class ArgumentParser:
                 self._parse_billable(arg[1:])
             elif arg[0] == '.':
                 self._parse_date(arg[1:])
+            elif arg[0] == '{':
+                self._parse_start(arg[1:])
+            elif arg[0] == '}':
+                self._parse_stop(arg[1:])
             else:
                 self._parse_description(arg)
 
@@ -174,6 +192,19 @@ class ClockifyClient:
             rich.print(f'[u]Answer[/u]:', r_data, '\n')
         return r_data
 
+    def _api_patch(self, path, data):
+        if self._debug:
+            rich.print(f'[u]PATCH to {path}[/u]:', data)
+
+        response = requests.patch(f'{self.API_URL}/{path}', headers=self._headers, json=data)
+        if not response.ok:
+            raise APIError('PATCH', path, response.status_code, response.json())
+
+        r_data = response.json()
+        if self._debug:
+            rich.print(f'[u]Answer[/u]:', r_data, '\n')
+        return r_data
+
     def _fetch_workspace_id(self):
         workspaces = self._api_get('workspaces')
         for workspace in workspaces:
@@ -205,15 +236,21 @@ class ClockifyClient:
         self._fetch_tags()
 
     def add_entries(self, date, entries):
-        endpoint = f'workspaces/{self._workspace_id}/time-entries'
         added_ids = set()
         for entry in entries:
             data = entry.serialize(
                 projects=self._projects_by_name,
                 tags=self._tags_by_name,
             )
-            r_data = self._api_post(endpoint, data)
+
+            if entry.start is None:
+                endpoint = f'workspaces/{self._workspace_id}/user/{self._user_id}/time-entries'
+                r_data = self._api_patch(endpoint, data)
+            else:
+                endpoint = f'workspaces/{self._workspace_id}/time-entries'
+                r_data = self._api_post(endpoint, data)
             # XXX Maybe do some sanity checks on the returned data?
+
             added_ids.add(r_data['id'])
         return added_ids
 
@@ -245,7 +282,7 @@ class ClockifyClient:
 @dataclasses.dataclass
 class Entry:
 
-    start: datetime.datetime
+    start: datetime.datetime = None
     end: datetime.datetime = None
     description: str = None
     billable: bool = False
@@ -255,9 +292,16 @@ class Entry:
     eid: str = None
 
     def serialize(self, *, projects, tags):
-        data = {
-            'start': _to_iso_timestamp(self.start),
-        }
+        if self.start is None:
+            # for PATCH
+            assert self.end is not None
+            return {
+                'end': _to_iso_timestamp(self.end),
+            }
+
+        data = {}
+
+        data['start'] = _to_iso_timestamp(self.start)
 
         if self.end is not None:
             data['end'] = _to_iso_timestamp(self.end)
