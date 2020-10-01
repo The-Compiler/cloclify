@@ -166,44 +166,28 @@ class ClockifyClient:
         self._tags_by_name = {}
         self._tags_by_id = {}
 
-    def _api_get(self, path, params=None):
+    def _api_call(self, verb, path, **kwargs):
         if self._debug:
-            rich.print(f'[u]GET from {path}[/u]:', params, '\n')
+            rich.print(f'[u]{verb.upper()} {path}[/u]:', kwargs, '\n')
 
-        response = requests.get(f'{self.API_URL}/{path}', headers=self._headers, params=params)
+        func = getattr(requests, verb.lower())
+        response = func(f'{self.API_URL}/{path}', headers=self._headers, **kwargs)
         if not response.ok:
-            raise APIError('GET', path, response.status_code, response.json())
+            raise APIError(verb.upper(), path, response.status_code, response.json())
 
         r_data = response.json()
         if self._debug:
             rich.print(f'[u]Answer[/u]:', r_data, '\n')
         return r_data
+
+    def _api_get(self, path, params=None):
+        return self._api_call('get', path, params=params)
 
     def _api_post(self, path, data):
-        if self._debug:
-            rich.print(f'[u]POST to {path}[/u]:', data)
-
-        response = requests.post(f'{self.API_URL}/{path}', headers=self._headers, json=data)
-        if not response.ok:
-            raise APIError('POST', path, response.status_code, response.json())
-
-        r_data = response.json()
-        if self._debug:
-            rich.print(f'[u]Answer[/u]:', r_data, '\n')
-        return r_data
+        return self._api_call('post', path, json=data)
 
     def _api_patch(self, path, data):
-        if self._debug:
-            rich.print(f'[u]PATCH to {path}[/u]:', data)
-
-        response = requests.patch(f'{self.API_URL}/{path}', headers=self._headers, json=data)
-        if not response.ok:
-            raise APIError('PATCH', path, response.status_code, response.json())
-
-        r_data = response.json()
-        if self._debug:
-            rich.print(f'[u]Answer[/u]:', r_data, '\n')
-        return r_data
+        return self._api_call('patch', path, json=data)
 
     def _fetch_workspace_id(self):
         workspaces = self._api_get('workspaces')
