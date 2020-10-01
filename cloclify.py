@@ -12,6 +12,7 @@ import dateutil.tz
 import rich.console
 import rich.table
 import rich.box
+import rich.panel
 
 
 class Error(Exception):
@@ -161,8 +162,8 @@ def _parse_iso_timestamp(timestamp):
 
 def print_entries(date, entries, debug):
     console = rich.console.Console(highlight=False)
-    table = rich.table.Table(title=f'Time entries for {date}', box=rich.box.ROUNDED)
 
+    table = rich.table.Table(title=f'Time entries for {date}', box=rich.box.ROUNDED)
     table.add_column("Description", style='yellow')
     table.add_column("Start", style='cyan')
     table.add_column("End", style='cyan')
@@ -170,8 +171,9 @@ def print_entries(date, entries, debug):
     table.add_column("Tags", style='blue')
     table.add_column("$", style='green')
 
-    for entry in entries:
+    for i, entry in enumerate(reversed(entries), start=1):
         if debug:
+            console.print(rich.panel.Panel(f'Entry {i}'))
             console.print(entry, highlight=True)
 
         data = []
@@ -217,7 +219,7 @@ def run():
         client.add_timespans(parser.date, parser.timespans)
 
     entries = client.get_entries(parser.date)
-    print_entries(parser.date, reversed(entries), debug=parser.debug)
+    print_entries(parser.date, entries, debug=parser.debug)
 
 
 def main():
