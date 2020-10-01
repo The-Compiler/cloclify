@@ -143,6 +143,17 @@ class ArgumentParser:
             tags=self.tags,
         ) for (start_dt, end_dt) in self._timespans]
 
+        has_new_entries = any(entry.start is not None for entry in self.entries)
+        if not has_new_entries:
+            if self._description:
+                raise UsageError(f"Description {self._description} given without new entries")
+            elif self._billable:
+                raise UsageError("Billable given without new entries")
+            elif self.project:
+                raise UsageError(f"Project {self.project} given without new entries")
+            elif self.tags:
+                raise UsageError(f"Tags {self.tags} given without new entries")
+
 
 class ClockifyClient:
 
