@@ -102,7 +102,8 @@ class ClockifyClient:
 
     API_URL = 'https://api.clockify.me/api/v1'
 
-    def __init__(self):
+    def __init__(self, debug=False):
+        self._debug = debug
         try:
             key = os.environ['CLOCKIFY_API_KEY']
             self._workspace_name = os.environ['CLOCKIFY_WORKSPACE']
@@ -114,16 +115,30 @@ class ClockifyClient:
         self._workspace_id = None
 
     def _api_get(self, path, params=None):
+        if self._debug:
+            rich.print(f'[u]GET from {path}[/u]:', params, '\n')
+
         response = requests.get(f'{self.API_URL}/{path}', headers=self._headers, params=params)
         if not response.ok:
             raise APIError('GET', path, response.status_code, response.json())
-        return response.json()
+
+        r_data = response.json()
+        if self._debug:
+            rich.print(f'[u]Answer[/u]:', r_data, '\n')
+        return r_data
 
     def _api_post(self, path, data):
+        if self._debug:
+            rich.print(f'[u]POST to {path}[/u]:', data)
+
         response = requests.post(f'{self.API_URL}/{path}', headers=self._headers, json=data)
         if not response.ok:
             raise APIError('POST', path, response.status_code, response.json())
-        return response.json()
+
+        r_data = response.json()
+        if self._debug:
+            rich.print(f'[u]Answer[/u]:', r_data, '\n')
+        return r_data
 
     def _fetch_workspace_id(self):
         workspaces = self._api_get('workspaces')
@@ -212,7 +227,7 @@ def run():
     parser = ArgumentParser()
     parser.parse()
 
-    client = ClockifyClient()
+    client = ClockifyClient(debug=parser.debug)
     client.fetch_info()
 
     if parser.timespans:
