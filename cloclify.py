@@ -160,8 +160,12 @@ class ClockifyClient:
 
     def add_entries(self, date, entries):
         endpoint = f'workspaces/{self._workspace_id}/time-entries'
+        added_ids = set()
         for entry in entries:
-            self._api_post(endpoint, entry.serialize())
+            data = self._api_post(endpoint, entry.serialize())
+            # XXX Maybe do some sanity checks on the returned data?
+            added_ids.add(data['id'])
+        return added_ids
 
     def get_entries(self, date):
         endpoint = f'workspaces/{self._workspace_id}/user/{self._user_id}/time-entries'
@@ -205,7 +209,7 @@ def _to_iso_timestamp(dt):
     return dt.isoformat() + 'Z'
 
 
-def print_entries(date, entries, debug):
+def print_entries(date, entries, debug, highlight_ids=frozenset()):
     console = rich.console.Console(highlight=False)
 
     table = rich.table.Table(title=f'Time entries for {date}', box=rich.box.ROUNDED)
@@ -214,7 +218,7 @@ def print_entries(date, entries, debug):
     table.add_column("End", style='cyan')
     table.add_column("Project")
     table.add_column("Tags", style='blue')
-    table.add_column("$", style='green')
+    table.add_column(":gear:")  # icons
 
     for i, entry in enumerate(reversed(entries), start=1):
         if debug:
@@ -245,10 +249,19 @@ def print_entries(date, entries, debug):
         tags = ', '.join(tag['name'] for tag in entry['tags'])
         data.append(tags)
 
-        billable = ':dollar:' if entry['billable'] else ''
-        data.append(billable)
+        if entry['id'] in highlight_ids:
+            icon = ':sparkles:'
+        elif entry['billable']:
+            icon = ':heavy_dollar_sign:'
+        else:
+            icon = ''
+        data.append(icon)
 
-        table.add_row(*data)
+        style = None
+        if highlight_ids and entry['id'] not in highlight_ids:
+            style = rich.style.Style(dim=True)
+
+        table.add_row(*data, style=style)
 
     console.print(table)
 
@@ -261,10 +274,12 @@ def run():
     client.fetch_info()
 
     if parser.entries:
-        client.add_entries(parser.date, parser.entries)
+        added = client.add_entries(parser.date, parser.entries)
+    else:
+        added = set()
 
     entries = client.get_entries(parser.date)
-    print_entries(parser.date, entries, debug=parser.debug)
+    print_entries(parser.date, entries, debug=parser.debug, highlight_ids=added)
 
 
 def main():
