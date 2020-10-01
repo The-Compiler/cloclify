@@ -5,6 +5,7 @@ import sys
 import datetime
 import argparse
 import dataclasses
+from typing import List
 
 import requests
 import dateparser
@@ -137,6 +138,12 @@ class ClockifyClient:
         self._user_id = None
         self._workspace_id = None
 
+        self._projects_by_name = {}
+        self._projects_by_id = {}
+
+        self._tags_by_name = {}
+        self._tags_by_id = {}
+
     def _api_get(self, path, params=None):
         if self._debug:
             rich.print(f'[u]GET from {path}[/u]:', params, '\n')
@@ -167,16 +174,31 @@ class ClockifyClient:
         workspaces = self._api_get('workspaces')
         for workspace in workspaces:
             if workspace['name'] == self._workspace_name:
-                return workspace['id']
+                self._workspace_id = workspace['id']
+                return
         raise UsageError(f'No workspace {name} found!')
 
     def _fetch_user_id(self):
         info = self._api_get('user')
-        return info['id']
+        self._user_id = info['id']
+
+    def _fetch_projects(self):
+        projects = self._api_get(f'workspaces/{self._workspace_id}/projects')
+        for proj in projects:
+            self._projects_by_name[proj['name']] = proj
+            self._projects_by_id[proj['id']] = proj
+
+    def _fetch_tags(self):
+        tags = self._api_get(f'workspaces/{self._workspace_id}/tags')
+        for tag in tags:
+            self._tags_by_name[tag['name']] = tag
+            self._tags_by_id[tag['id']] = tag
 
     def fetch_info(self):
-        self._workspace_id = self._fetch_workspace_id()
-        self._user_id = self._fetch_user_id()
+        self._fetch_workspace_id()
+        self._fetch_user_id()
+        self._fetch_projects()
+        self._fetch_tags()
 
     def add_entries(self, date, entries):
         endpoint = f'workspaces/{self._workspace_id}/time-entries'
@@ -194,9 +216,14 @@ class ClockifyClient:
         params = {
             'start': _to_iso_timestamp(start),
             'end': _to_iso_timestamp(end),
-            'hydrated': True,  # request full project/tag/task entries
         }
-        return self._api_get(endpoint, params)
+        data = self._api_get(endpoint, params)
+        for entry in data:
+            yield Entry.deserialize(
+                entry,
+                projects=self._projects_by_id,
+                tags=self._tags_by_id
+            )
 
 
 @dataclasses.dataclass
@@ -206,6 +233,10 @@ class Entry:
     end: datetime.datetime = None
     description: str = None
     billable: bool = False
+    project: str = None
+    project_color: str = None
+    tags: List[str] = dataclasses.field(default_factory=list)
+    eid: str = None
 
     def serialize(self):
         data = {
@@ -218,6 +249,31 @@ class Entry:
         if self.billable:
             data['billable'] = True
         return data
+
+    @classmethod
+    def deserialize(cls, data, *, projects, tags):
+        entry = cls(data['description'])
+
+        entry.start = _from_iso_timestamp(data['timeInterval']['start'])
+
+        if data['timeInterval']['end'] is not None:
+            entry.end = _from_iso_timestamp(data['timeInterval']['end'])
+
+        entry.description = data['description']
+        entry.billable = data['billable']
+
+        if data['projectId'] is not None:
+            project = projects[data['projectId']]
+            entry.project = project['name']
+            entry.project_color = project['color']
+
+        if data['tagIds'] is not None:
+            for tag_id in data['tagIds']:
+                entry.tags.append(tags[tag_id]['name'])
+
+        entry.eid = data['id']
+
+        return entry
 
 
 def _from_iso_timestamp(timestamp):
@@ -240,44 +296,36 @@ def print_entries(date, entries, debug, highlight_ids=frozenset()):
     table.add_column("Tags", style='blue')
     table.add_column(":gear:")  # icons
 
-    for i, entry in enumerate(reversed(entries), start=1):
+    for entry in reversed(list(entries)):
         if debug:
-            console.print(rich.panel.Panel(f'Entry {i}'))
             console.print(entry, highlight=True)
 
         data = []
 
-        description = entry['description']
-        data.append(description)
+        data.append(entry.description)
+        data.append(entry.start.strftime('%H:%M'))
 
-        start = _from_iso_timestamp(entry['timeInterval']['start'])
-        data.append(start.strftime('%H:%M'))
-
-        end = entry['timeInterval']['end']
-        if end is None:
+        if entry.end is None:
             data.append(':clock3:')
         else:
-            data.append(_from_iso_timestamp(end).strftime('%H:%M'))
+            data.append(entry.end.strftime('%H:%M'))
 
-        if entry['project'] is None:
+        if entry.project is None:
             data.append('')
         else:
-            proj_name = entry['project']['name']
-            proj_color = entry['project']['color']
-            data.append(f'[{proj_color}]{proj_name}[/{proj_color}]')
+            data.append(f'[{entry.project_color}]{entry.project}[/{entry.project_color}]')
 
-        tags = ', '.join(tag['name'] for tag in entry['tags'])
-        data.append(tags)
+        data.append(', '.join(entry.tags))
 
         icon = ''
-        if entry['id'] in highlight_ids:
+        if entry.eid in highlight_ids:
             icon += ':sparkles:'
-        if entry['billable']:
+        if entry.billable:
             icon += ':heavy_dollar_sign:'
         data.append(icon)
 
         style = None
-        if highlight_ids and entry['id'] not in highlight_ids:
+        if highlight_ids and entry.eid not in highlight_ids:
             style = rich.style.Style(dim=True)
 
         table.add_row(*data, style=style)
