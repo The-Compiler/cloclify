@@ -206,7 +206,7 @@ def _from_iso_timestamp(timestamp):
 
 
 def _to_iso_timestamp(dt):
-    return dt.isoformat() + 'Z'
+    return dt.astimezone(dateutil.tz.UTC).isoformat().replace('+00:00', 'Z')
 
 
 def print_entries(date, entries, debug, highlight_ids=frozenset()):
