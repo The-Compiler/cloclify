@@ -3,6 +3,7 @@
 import os
 import sys
 import datetime
+import argparse
 
 import requests
 import dateparser
@@ -27,43 +28,73 @@ class APIError(Error):
         super().__init__(f'API {method} to {path} failed with {status}: {data}')
 
 
-def parse_args(args):
-    date = None
-    timespans = []
+class ArgumentParser:
 
-    for arg in args:
-        if ':' in arg and '-' in arg:
-            # Looks like a timespan
-            try:
-                start_str, end_str = arg.split('-')
-            except ValueError:
-                raise UsageError(f"Couldn't parse timespan {arg} (too many '-')")
-            start_time = datetime.datetime.strptime(start_str, '%H:%M').time()
-            end_time = datetime.datetime.strptime(end_str, '%H:%M').time()
-            timespans.append((start_time, end_time))
-        elif arg[0] == '+':
-            # Looks like a tag
-            raise UsageError("Tags are not supported yet")
-        else:
-            # Anything else is parsed as (possibly relative) date
-            if date is not None:
-                raise UsageError("Multiple dates")
+    def __init__(self):
+        self.date = None
+        self.timespans = []
+        self.debug = None
 
-            midnight = datetime.datetime.combine(datetime.datetime.now(), datetime.time())
-            parsed = dateparser.parse(arg, settings={'RELATIVE_BASE': midnight})
+        self._parser = argparse.ArgumentParser()
+        self._parser.add_argument('inputs', help='A date or time range', nargs='*')
+        self._parser.add_argument('--debug', help='Enable debug output', action='store_true')
 
-            if parsed is None:
-                raise UsageError(f"Couldn't parse date {arg}")
+    def _parse_timespan(self, arg):
+        try:
+            start_str, end_str = arg.split('-')
+        except ValueError:
+            raise UsageError(f"Couldn't parse timespan {arg} (too many '-')")
+        start_time = datetime.datetime.strptime(start_str, '%H:%M').time()
+        end_time = datetime.datetime.strptime(end_str, '%H:%M').time()
+        self.timespans.append((start_time, end_time))
 
-            if parsed.time() != datetime.time():
-                raise UsageError(f"Date {arg} contains unexpected time")
+    def _parse_date(self, arg):
+        if self.date is not None:
+            raise UsageError("Multiple dates")
 
-            date = parsed.date()
+        midnight = datetime.datetime.combine(datetime.datetime.now(), datetime.time())
+        parsed = dateparser.parse(arg, settings={'RELATIVE_BASE': midnight})
 
-    if date is None:
-        date = datetime.datetime.today().date()
+        if parsed is None:
+            raise UsageError(f"Couldn't parse date {arg}")
 
-    return date, timespans
+        if parsed.time() != datetime.time():
+            raise UsageError(f"Date {arg} contains unexpected time")
+
+        self.date = parsed.date()
+
+    def _parse_description(self, arg):
+        raise UsageError("Descriptions are not supported yet")
+
+    def _parse_project(self, arg):
+        raise UsageError("Projects are not supported yet")
+
+    def _parse_tag(self, arg):
+        raise UsageError("Tags are not supported yet")
+
+    def _parse_billable(self, arg):
+        raise UsageError("Billable is not supported yet")
+
+    def parse(self, args=None):
+        parsed = self._parser.parse_args(args)
+        self.debug = parsed.debug
+
+        for arg in parsed.inputs:
+            if ':' in arg and '-' in arg:
+                self._parse_timespan(arg)
+            elif arg[0] == '+':
+                self._parse_tag(arg[1:])
+            elif arg[0] == '@':
+                self._parse_project(arg[1:])
+            elif arg == '$':
+                self._parse_billable()
+            elif arg == '.':
+                self._parse_date(arg[1:])
+            else:
+                self._parse_description(arg)
+
+        if self.date is None:
+            self.date = datetime.datetime.today().date()
 
 
 class ClockifyClient:
@@ -109,7 +140,7 @@ class ClockifyClient:
         self._user_id = self._fetch_user_id()
 
     def add_timespans(self, date, timespans):
-        raise UsageError("Not implemented yet")
+        raise UsageError("Adding timespans is not implemented yet")
 
     def get_entries(self, date):
         endpoint = f'workspaces/{self._workspace_id}/user/{self._user_id}/time-entries'
@@ -128,7 +159,7 @@ def _parse_iso_timestamp(timestamp):
     return utc.astimezone(dateutil.tz.tzlocal())
 
 
-def print_entries(date, entries):
+def print_entries(date, entries, debug):
     console = rich.console.Console(highlight=False)
     table = rich.table.Table(title=f'Time entries for {date}', box=rich.box.ROUNDED)
 
@@ -140,7 +171,8 @@ def print_entries(date, entries):
     table.add_column("$", style='green')
 
     for entry in entries:
-        # console.print(entry, highlight=True)
+        if debug:
+            console.print(entry, highlight=True)
 
         data = []
 
@@ -175,16 +207,17 @@ def print_entries(date, entries):
 
 
 def run():
-    date, timespans = parse_args(sys.argv[1:])
+    parser = ArgumentParser()
+    parser.parse()
 
     client = ClockifyClient()
     client.fetch_info()
 
-    if timespans:
-        client.add_timespans(date, timespans)
+    if parser.timespans:
+        client.add_timespans(parser.date, parser.timespans)
 
-    entries = client.get_entries(date)
-    print_entries(date, reversed(entries))
+    entries = client.get_entries(parser.date)
+    print_entries(parser.date, reversed(entries), debug=parser.debug)
 
 
 def main():
