@@ -41,6 +41,8 @@ class ArgumentParser:
         self.date = datetime.datetime.now().date()
         self.entries = []
         self.debug = None
+        self.tags = []
+        self.project = None
 
         self._parser = argparse.ArgumentParser()
         self._parser.add_argument(
@@ -86,10 +88,10 @@ class ArgumentParser:
             self._description = arg
 
     def _parse_project(self, arg):
-        raise UsageError("Projects are not supported yet")
+        self.project = arg
 
     def _parse_tag(self, arg):
-        raise UsageError("Tags are not supported yet")
+        self.tags.append(arg)
 
     def _parse_billable(self, arg):
         if arg:
@@ -118,7 +120,9 @@ class ArgumentParser:
             start=start_dt,
             end=end_dt,
             description=self._description,
-            billable=self._billable
+            billable=self._billable,
+            project=self.project,
+            tags=self.tags,
         ) for (start_dt, end_dt) in self._timespans]
 
 
@@ -204,9 +208,13 @@ class ClockifyClient:
         endpoint = f'workspaces/{self._workspace_id}/time-entries'
         added_ids = set()
         for entry in entries:
-            data = self._api_post(endpoint, entry.serialize())
+            data = entry.serialize(
+                projects=self._projects_by_name,
+                tags=self._tags_by_name,
+            )
+            r_data = self._api_post(endpoint, data)
             # XXX Maybe do some sanity checks on the returned data?
-            added_ids.add(data['id'])
+            added_ids.add(r_data['id'])
         return added_ids
 
     def get_entries(self, date):
@@ -225,6 +233,14 @@ class ClockifyClient:
                 tags=self._tags_by_id
             )
 
+    def validate(self, *, tags, project):
+        for tag in tags:
+            if tag not in self._tags_by_name:
+                raise UsageError(f"Unknown tag {tag}")
+
+        if project is not None and project not in self._projects_by_name:
+            raise UsageError(f"Unknown project {project}")
+
 
 @dataclasses.dataclass
 class Entry:
@@ -238,16 +254,26 @@ class Entry:
     tags: List[str] = dataclasses.field(default_factory=list)
     eid: str = None
 
-    def serialize(self):
+    def serialize(self, *, projects, tags):
         data = {
             'start': _to_iso_timestamp(self.start),
         }
+
         if self.end is not None:
             data['end'] = _to_iso_timestamp(self.end)
+
         if self.description is not None:
             data['description'] = self.description
+
         if self.billable:
             data['billable'] = True
+
+        if self.project is not None:
+            data['projectId'] = projects[self.project]['id']
+
+        if self.tags is not None:
+            data['tagIds'] = [tags[tag]['id'] for tag in self.tags]
+
         return data
 
     @classmethod
@@ -341,6 +367,7 @@ def run():
     client.fetch_info()
 
     if parser.entries:
+        client.validate(tags=parser.tags, project=parser.project)
         added = client.add_entries(parser.date, parser.entries)
     else:
         added = set()
