@@ -228,11 +228,14 @@ class ClockifyClient:
             )
 
             if entry.start is None:
+                # Finishing a started entry
                 endpoint = f'workspaces/{self._workspace_id}/user/{self._user_id}/time-entries'
                 r_data = self._api_patch(endpoint, data)
             else:
+                # Adding a new entry
                 endpoint = f'workspaces/{self._workspace_id}/time-entries'
                 r_data = self._api_post(endpoint, data)
+
             # XXX Maybe do some sanity checks on the returned data?
 
             added_ids.add(r_data['id'])
