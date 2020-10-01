@@ -109,7 +109,7 @@ class ArgumentParser:
                 self._parse_tag(arg[1:])
             elif arg[0] == '@':
                 self._parse_project(arg[1:])
-            elif arg[0]  == '$':
+            elif arg[0] == '$':
                 self._parse_billable(arg[1:])
             elif arg[0] == '.':
                 self._parse_date(arg[1:])
@@ -265,8 +265,7 @@ class Entry:
         if self.description is not None:
             data['description'] = self.description
 
-        if self.billable:
-            data['billable'] = True
+        data['billable'] = self.billable
 
         if self.project is not None:
             data['projectId'] = projects[self.project]['id']
