@@ -1,0 +1,4 @@
+requests
+dateparser
+python-dateutil
+rich
