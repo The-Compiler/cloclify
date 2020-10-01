@@ -265,12 +265,11 @@ def print_entries(date, entries, debug, highlight_ids=frozenset()):
         tags = ', '.join(tag['name'] for tag in entry['tags'])
         data.append(tags)
 
+        icon = ''
         if entry['id'] in highlight_ids:
-            icon = ':sparkles:'
-        elif entry['billable']:
-            icon = ':heavy_dollar_sign:'
-        else:
-            icon = ''
+            icon += ':sparkles:'
+        if entry['billable']:
+            icon += ':heavy_dollar_sign:'
         data.append(icon)
 
         style = None
