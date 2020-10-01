@@ -4,6 +4,7 @@ import os
 import sys
 import datetime
 import argparse
+import dataclasses
 
 import requests
 import dateparser
@@ -32,8 +33,8 @@ class APIError(Error):
 class ArgumentParser:
 
     def __init__(self):
-        self.date = None
-        self.timespans = []
+        self.date = datetime.datetime.now().date()
+        self.entries = []
         self.debug = None
 
         self._parser = argparse.ArgumentParser()
@@ -45,12 +46,17 @@ class ArgumentParser:
             start_str, end_str = arg.split('-')
         except ValueError:
             raise UsageError(f"Couldn't parse timespan {arg} (too many '-')")
+
         start_time = datetime.datetime.strptime(start_str, '%H:%M').time()
         end_time = datetime.datetime.strptime(end_str, '%H:%M').time()
-        self.timespans.append((start_time, end_time))
+
+        start_dt = datetime.datetime.combine(self.date, start_time)
+        end_dt = datetime.datetime.combine(self.date, end_time)
+
+        self.entries.append(Entry(start_dt, end_dt))
 
     def _parse_date(self, arg):
-        if self.date is not None:
+        if self.date != datetime.datetime.now().date():
             raise UsageError("Multiple dates")
 
         midnight = datetime.datetime.combine(datetime.datetime.now(), datetime.time())
@@ -93,9 +99,6 @@ class ArgumentParser:
                 self._parse_date(arg[1:])
             else:
                 self._parse_description(arg)
-
-        if self.date is None:
-            self.date = datetime.datetime.today().date()
 
 
 class ClockifyClient:
@@ -155,24 +158,51 @@ class ClockifyClient:
         self._workspace_id = self._fetch_workspace_id()
         self._user_id = self._fetch_user_id()
 
-    def add_timespans(self, date, timespans):
-        raise UsageError("Adding timespans is not implemented yet")
+    def add_entries(self, date, entries):
+        endpoint = f'workspaces/{self._workspace_id}/time-entries'
+        for entry in entries:
+            self._api_post(endpoint, entry.serialize())
 
     def get_entries(self, date):
         endpoint = f'workspaces/{self._workspace_id}/user/{self._user_id}/time-entries'
         start = datetime.datetime.combine(date, datetime.time())
         end = start + datetime.timedelta(days=1)
         params = {
-            'start': start.isoformat() + 'Z',
-            'end': end.isoformat() + 'Z',
+            'start': _to_iso_timestamp(start),
+            'end': _to_iso_timestamp(end),
             'hydrated': True,  # request full project/tag/task entries
         }
         return self._api_get(endpoint, params)
 
 
-def _parse_iso_timestamp(timestamp):
+@dataclasses.dataclass
+class Entry:
+
+    start: datetime.datetime
+    end: datetime.datetime = None
+    description: str = None
+    billable: bool = False
+
+    def serialize(self):
+        data = {
+            'start': _to_iso_timestamp(self.start),
+        }
+        if self.end is not None:
+            data['end'] = _to_iso_timestamp(self.end)
+        if self.description is not None:
+            data['description'] = self.description
+        if self.billable:
+            data['billable'] = True
+        return data
+
+
+def _from_iso_timestamp(timestamp):
     utc = dateutil.parser.isoparse(timestamp)
     return utc.astimezone(dateutil.tz.tzlocal())
+
+
+def _to_iso_timestamp(dt):
+    return dt.isoformat() + 'Z'
 
 
 def print_entries(date, entries, debug):
@@ -196,14 +226,14 @@ def print_entries(date, entries, debug):
         description = entry['description']
         data.append(description)
 
-        start = _parse_iso_timestamp(entry['timeInterval']['start'])
+        start = _from_iso_timestamp(entry['timeInterval']['start'])
         data.append(start.strftime('%H:%M'))
 
         end = entry['timeInterval']['end']
         if end is None:
             data.append(':clock3:')
         else:
-            data.append(_parse_iso_timestamp(end).strftime('%H:%M'))
+            data.append(_from_iso_timestamp(end).strftime('%H:%M'))
 
         if entry['project'] is None:
             data.append('')
@@ -230,8 +260,8 @@ def run():
     client = ClockifyClient(debug=parser.debug)
     client.fetch_info()
 
-    if parser.timespans:
-        client.add_timespans(parser.date, parser.timespans)
+    if parser.entries:
+        client.add_entries(parser.date, parser.entries)
 
     entries = client.get_entries(parser.date)
     print_entries(parser.date, entries, debug=parser.debug)
