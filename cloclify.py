@@ -5,7 +5,8 @@ import sys
 import datetime
 import argparse
 import dataclasses
-from typing import List
+from typing import (List, Dict, Any, Set, AbstractSet, Iterator, Iterable, Tuple,
+                    Optional)
 
 import requests
 import dateparser
@@ -27,8 +28,11 @@ class UsageError(Error):
 
 class APIError(Error):
 
-    def __init__(self, method, path, status, data):
+    def __init__(self, method: str, path: str, status: int, data: str) -> None:
         super().__init__(f'API {method} to {path} failed with {status}: {data}')
+
+
+Timespan = Tuple[Optional[datetime.datetime], Optional[datetime.datetime]]
 
 
 class ArgumentParser:
@@ -77,17 +81,17 @@ class ArgumentParser:
     $ cloclify @secretproject +collab +external $ .yesterday 13:00-17:00
     """
 
-    def __init__(self):
-        self._timespans = []
-        self._description = ""
-        self._billable = False
+    def __init__(self) -> None:
+        self._timespans: List[Timespan] = []
+        self._description: str = ""
+        self._billable: bool = False
 
-        self.date = datetime.datetime.now().date()
-        self.entries = []
-        self.debug = None
-        self.tags = []
-        self.project = None
-        self.workspace = None
+        self.date: datetime.date = datetime.datetime.now().date()
+        self.entries: List[Entry] = []
+        self.debug: bool = False
+        self.tags: List[str] = []
+        self.project: Optional[str] = None
+        self.workspace: Optional[str] = None
 
         self._parser = argparse.ArgumentParser(
             formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -97,7 +101,7 @@ class ArgumentParser:
                                   metavar='input', nargs='*')
         self._parser.add_argument('--debug', help='Enable debug output', action='store_true')
 
-    def _parse_time(self, time_str):
+    def _parse_time(self, time_str: str) -> datetime.datetime:
         if time_str == 'now':
             return datetime.datetime.now()
 
@@ -107,7 +111,7 @@ class ArgumentParser:
             raise UsageError(str(e))
         return datetime.datetime.combine(self.date, time)
 
-    def _parse_timespan(self, arg):
+    def _parse_timespan(self, arg: str) -> None:
         try:
             start_str, end_str = arg.split('-')
         except ValueError:
@@ -117,15 +121,15 @@ class ArgumentParser:
         end_dt = self._parse_time(end_str)
         self._timespans.append((start_dt, end_dt))
 
-    def _parse_start(self, arg):
+    def _parse_start(self, arg: str) -> None:
         dt = self._parse_time(arg)
         self._timespans.append((dt, None))
 
-    def _parse_stop(self, arg):
+    def _parse_stop(self, arg: str) -> None:
         dt = self._parse_time(arg)
         self._timespans.append((None, dt))
 
-    def _parse_date(self, arg):
+    def _parse_date(self, arg: str) -> None:
         if self.date != datetime.datetime.now().date():
             raise UsageError("Multiple dates")
 
@@ -140,29 +144,29 @@ class ArgumentParser:
 
         self.date = parsed.date()
 
-    def _parse_description(self, arg):
+    def _parse_description(self, arg: str) -> None:
         if self._description:
             self._description += ' ' + arg
         else:
             self._description = arg
 
-    def _parse_project(self, arg):
+    def _parse_project(self, arg: str) -> None:
         self.project = arg
 
-    def _parse_tag(self, arg):
+    def _parse_tag(self, arg: str) -> None:
         self.tags.append(arg)
 
-    def _parse_workspace(self, arg):
+    def _parse_workspace(self, arg: str) -> None:
         if self.workspace is not None:
             raise UsageError(f"Multiple workspaces: {self.workspace}, {arg}")
         self.workspace = arg
 
-    def _parse_billable(self, arg):
+    def _parse_billable(self, arg: str) -> None:
         if arg:
             raise UsageError(f"Invalid billable arg {arg}")
         self._billable = True
 
-    def parse(self, args=None):
+    def parse(self, args: List[str] = None) -> None:
         parsed = self._parser.parse_args(args)
         self.debug = parsed.debug
 
@@ -216,7 +220,7 @@ class ClockifyClient:
 
     API_URL = 'https://api.clockify.me/api/v1'
 
-    def __init__(self, debug=False, workspace=None):
+    def __init__(self, debug: bool = False, workspace: str = None) -> None:
         self._debug = debug
         try:
             key = os.environ['CLOCKIFY_API_KEY']
@@ -236,13 +240,13 @@ class ClockifyClient:
         self._user_id = None
         self._workspace_id = None
 
-        self._projects_by_name = {}
-        self._projects_by_id = {}
+        self._projects_by_name: Dict[str, str] = {}
+        self._projects_by_id: Dict[str, str] = {}
 
-        self._tags_by_name = {}
-        self._tags_by_id = {}
+        self._tags_by_name: Dict[str, str] = {}
+        self._tags_by_id: Dict[str, str] = {}
 
-    def _api_call(self, verb, path, **kwargs):
+    def _api_call(self, verb: str, path: str, **kwargs: Any) -> Any:
         if self._debug:
             rich.print(f'[u]{verb.upper()} {path}[/u]:', kwargs, '\n')
 
@@ -256,16 +260,16 @@ class ClockifyClient:
             rich.print(f'[u]Answer[/u]:', r_data, '\n')
         return r_data
 
-    def _api_get(self, path, params=None):
+    def _api_get(self, path: str, params: Dict[str, str] = None) -> Any:
         return self._api_call('get', path, params=params)
 
-    def _api_post(self, path, data):
+    def _api_post(self, path: str, data: Any) -> Any:
         return self._api_call('post', path, json=data)
 
-    def _api_patch(self, path, data):
+    def _api_patch(self, path: str, data: Any) -> Any:
         return self._api_call('patch', path, json=data)
 
-    def _fetch_workspace_id(self):
+    def _fetch_workspace_id(self) -> None:
         workspaces = self._api_get('workspaces')
         for workspace in workspaces:
             if workspace['name'] == self._workspace_name:
@@ -274,29 +278,29 @@ class ClockifyClient:
         raise UsageError(f'No workspace [yellow]{self._workspace_name}[/yellow] '
                           'found!')
 
-    def _fetch_user_id(self):
+    def _fetch_user_id(self) -> None:
         info = self._api_get('user')
         self._user_id = info['id']
 
-    def _fetch_projects(self):
+    def _fetch_projects(self) -> None:
         projects = self._api_get(f'workspaces/{self._workspace_id}/projects')
         for proj in projects:
             self._projects_by_name[proj['name']] = proj
             self._projects_by_id[proj['id']] = proj
 
-    def _fetch_tags(self):
+    def _fetch_tags(self) -> None:
         tags = self._api_get(f'workspaces/{self._workspace_id}/tags')
         for tag in tags:
             self._tags_by_name[tag['name']] = tag
             self._tags_by_id[tag['id']] = tag
 
-    def fetch_info(self):
+    def fetch_info(self) -> None:
         self._fetch_workspace_id()
         self._fetch_user_id()
         self._fetch_projects()
         self._fetch_tags()
 
-    def add_entries(self, date, entries):
+    def add_entries(self, date: datetime.date, entries: List[Entry]) -> Set[str]:
         added_ids = set()
         for entry in entries:
             data = entry.serialize(
@@ -318,7 +322,7 @@ class ClockifyClient:
             added_ids.add(r_data['id'])
         return added_ids
 
-    def get_entries(self, date):
+    def get_entries(self, date: datetime.date) -> Iterator[Entry]:
         endpoint = f'workspaces/{self._workspace_id}/user/{self._user_id}/time-entries'
         start = datetime.datetime.combine(date, datetime.time())
         end = start + datetime.timedelta(days=1)
@@ -334,7 +338,7 @@ class ClockifyClient:
                 tags=self._tags_by_id
             )
 
-    def validate(self, *, tags, project):
+    def validate(self, *, tags: List[str], project: Optional[str]) -> None:
         for tag in tags:
             if tag not in self._tags_by_name:
                 raise UsageError(f"Unknown tag {tag}")
@@ -346,16 +350,16 @@ class ClockifyClient:
 @dataclasses.dataclass
 class Entry:
 
-    start: datetime.datetime = None
-    end: datetime.datetime = None
-    description: str = None
+    start: Optional[datetime.datetime] = None
+    end: Optional[datetime.datetime] = None
+    description: Optional[str] = None
     billable: bool = False
-    project: str = None
-    project_color: str = None
+    project: Optional[str] = None
+    project_color: Optional[str] = None
     tags: List[str] = dataclasses.field(default_factory=list)
-    eid: str = None
+    eid: Optional[str] = None
 
-    def serialize(self, *, projects, tags):
+    def serialize(self, *, projects: Dict[str, Any], tags: Dict[str, Any]) -> Any:
         if self.start is None:
             # for PATCH
             assert self.end is not None
@@ -363,7 +367,7 @@ class Entry:
                 'end': _to_iso_timestamp(self.end),
             }
 
-        data = {}
+        data: Dict[str, Any] = {}
 
         data['start'] = _to_iso_timestamp(self.start)
 
@@ -384,7 +388,12 @@ class Entry:
         return data
 
     @classmethod
-    def deserialize(cls, data, *, projects, tags):
+    def deserialize(
+            cls,
+            data: Any, *,
+            projects: Dict[str, Any],
+            tags: Dict[str, Any]
+    ) -> 'Entry':
         entry = cls(data['description'])
 
         entry.start = _from_iso_timestamp(data['timeInterval']['start'])
@@ -409,16 +418,21 @@ class Entry:
         return entry
 
 
-def _from_iso_timestamp(timestamp):
+def _from_iso_timestamp(timestamp: str) -> datetime.datetime:
     utc = dateutil.parser.isoparse(timestamp)
     return utc.astimezone(dateutil.tz.tzlocal())
 
 
-def _to_iso_timestamp(dt):
+def _to_iso_timestamp(dt: datetime.datetime) -> str:
     return dt.astimezone(dateutil.tz.UTC).isoformat().replace('+00:00', 'Z')
 
 
-def print_entries(date, entries, debug, highlight_ids=frozenset()):
+def print_entries(
+        date: datetime.date,
+        entries: Iterable[Entry],
+        debug: bool,
+        highlight_ids: AbstractSet[str] = frozenset(),
+    ) -> None:
     console = rich.console.Console(highlight=False)
 
     table = rich.table.Table(title=f'Time entries for {date}', box=rich.box.ROUNDED)
@@ -436,6 +450,8 @@ def print_entries(date, entries, debug, highlight_ids=frozenset()):
         data = []
 
         data.append(entry.description)
+
+        assert entry.start is not None, entry
         data.append(entry.start.strftime('%H:%M'))
 
         if entry.end is None:
@@ -466,7 +482,7 @@ def print_entries(date, entries, debug, highlight_ids=frozenset()):
     console.print(table)
 
 
-def run():
+def run() -> None:
     parser = ArgumentParser()
     parser.parse()
 
@@ -483,7 +499,7 @@ def run():
     print_entries(parser.date, entries, debug=parser.debug, highlight_ids=added)
 
 
-def main():
+def main() -> int:
     try:
         run()
     except Error as e:
