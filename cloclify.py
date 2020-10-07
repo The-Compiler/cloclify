@@ -49,6 +49,8 @@ class ArgumentParser:
     +tag           Add the given tag to all specified time entries.
     @project       Set the given project for all specified time entries.
     $              Mark all specified time entries as billable.
+    ^workspace     Add all entries to the given workspace.
+                   (If not given, the CLOCKIFY_WORKSPACE envvar is used)
 
     .date          Show/edit time entries for the given date.
                    Can be relative (".yesterday", ".5 days ago") or absolute
@@ -85,6 +87,7 @@ class ArgumentParser:
         self.debug = None
         self.tags = []
         self.project = None
+        self.workspace = None
 
         self._parser = argparse.ArgumentParser(
             formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -149,6 +152,11 @@ class ArgumentParser:
     def _parse_tag(self, arg):
         self.tags.append(arg)
 
+    def _parse_workspace(self, arg):
+        if self.workspace is not None:
+            raise UsageError(f"Multiple workspaces: {self.workspace}, {arg}")
+        self.workspace = arg
+
     def _parse_billable(self, arg):
         if arg:
             raise UsageError(f"Invalid billable arg {arg}")
@@ -169,6 +177,8 @@ class ArgumentParser:
                 self._parse_billable(arg[1:])
             elif arg[0] == '.':
                 self._parse_date(arg[1:])
+            elif arg[0] == '^':
+                self._parse_workspace(arg[1:])
             elif arg[0] == '{':
                 self._parse_start(arg[1:])
             elif arg[0] == '}':
@@ -186,7 +196,6 @@ class ArgumentParser:
             description=self._description,
             billable=self._billable,
             project=self.project,
-            tags=self.tags,
         ) for (start_dt, end_dt) in self._timespans]
 
         has_new_entries = any(entry.start is not None for entry in self.entries)
@@ -199,19 +208,29 @@ class ArgumentParser:
                 raise UsageError(f"Project {self.project} given without new entries")
             elif self.tags:
                 raise UsageError(f"Tags {self.tags} given without new entries")
+            elif self.workspace:
+                raise UsageError(f"Workspace {self.workspace} given without new entries")
 
 
 class ClockifyClient:
 
     API_URL = 'https://api.clockify.me/api/v1'
 
-    def __init__(self, debug=False):
+    def __init__(self, debug=False, workspace=None):
         self._debug = debug
         try:
             key = os.environ['CLOCKIFY_API_KEY']
-            self._workspace_name = os.environ['CLOCKIFY_WORKSPACE']
         except KeyError as e:
             raise UsageError(f"{e} not defined in environment")
+
+        if workspace is None:
+            try:
+                self._workspace_name = os.environ['CLOCKIFY_WORKSPACE']
+            except KeyError as e:
+                raise UsageError(f"{e} not defined in environment and "
+                                  "'^workspace' not given")
+        else:
+            self._workspace_name = workspace
 
         self._headers = {'X-Api-Key': key}
         self._user_id = None
@@ -252,7 +271,8 @@ class ClockifyClient:
             if workspace['name'] == self._workspace_name:
                 self._workspace_id = workspace['id']
                 return
-        raise UsageError(f'No workspace {name} found!')
+        raise UsageError(f'No workspace [yellow]{self._workspace_name}[/yellow] '
+                          'found!')
 
     def _fetch_user_id(self):
         info = self._api_get('user')
@@ -450,7 +470,7 @@ def run():
     parser = ArgumentParser()
     parser.parse()
 
-    client = ClockifyClient(debug=parser.debug)
+    client = ClockifyClient(debug=parser.debug, workspace=parser.workspace)
     client.fetch_info()
 
     if parser.entries:
