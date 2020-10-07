@@ -32,7 +32,7 @@ class APIError(Error):
         super().__init__(f'API {method} to {path} failed with {status}: {data}')
 
 
-Timespan = Tuple[Optional[datetime.datetime], Optional[datetime.datetime]]
+Timespan = Tuple[Optional[datetime.time], Optional[datetime.time]]
 
 
 class ArgumentParser:
@@ -101,15 +101,23 @@ class ArgumentParser:
                                   metavar='input', nargs='*')
         self._parser.add_argument('--debug', help='Enable debug output', action='store_true')
 
-    def _parse_time(self, time_str: str) -> datetime.datetime:
+    def _combine_date(self, time: Optional[datetime.time]) -> Optional[datetime.datetime]:
+        """Combine the given timestamp with the saved date."""
+        if time is None:
+            return None
+        return datetime.datetime.combine(self.date, time)
+
+    def _parse_time(self, time_str: str) -> datetime.time:
         if time_str == 'now':
-            return datetime.datetime.now()
+            now = datetime.datetime.now()
+            if self.date != now.date():
+                raise UsageError("Can't combine 'now' with different date")
+            return now.time()
 
         try:
-            time = datetime.datetime.strptime(time_str, '%H:%M').time()
+            return datetime.datetime.strptime(time_str, '%H:%M').time()
         except ValueError as e:
             raise UsageError(str(e))
-        return datetime.datetime.combine(self.date, time)
 
     def _parse_timespan(self, arg: str) -> None:
         try:
@@ -117,17 +125,17 @@ class ArgumentParser:
         except ValueError:
             raise UsageError(f"Couldn't parse timespan {arg} (too many '-')")
 
-        start_dt = self._parse_time(start_str)
-        end_dt = self._parse_time(end_str)
-        self._timespans.append((start_dt, end_dt))
+        start_time = self._parse_time(start_str)
+        end_time = self._parse_time(end_str)
+        self._timespans.append((start_time, end_time))
 
     def _parse_start(self, arg: str) -> None:
-        dt = self._parse_time(arg)
-        self._timespans.append((dt, None))
+        time = self._parse_time(arg)
+        self._timespans.append((time, None))
 
     def _parse_stop(self, arg: str) -> None:
-        dt = self._parse_time(arg)
-        self._timespans.append((None, dt))
+        time = self._parse_time(arg)
+        self._timespans.append((None, time))
 
     def _parse_date(self, arg: str) -> None:
         if self.date != datetime.datetime.now().date():
@@ -195,12 +203,12 @@ class ArgumentParser:
                 self._parse_description(arg)
 
         self.entries = [Entry(
-            start=start_dt,
-            end=end_dt,
+            start=self._combine_date(start_time),
+            end=self._combine_date(end_time),
             description=self._description,
             billable=self._billable,
             project=self.project,
-        ) for (start_dt, end_dt) in self._timespans]
+        ) for (start_time, end_time) in self._timespans]
 
         has_new_entries = any(entry.start is not None for entry in self.entries)
         if not has_new_entries:
