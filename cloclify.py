@@ -35,6 +35,79 @@ class APIError(Error):
 Timespan = Tuple[Optional[datetime.time], Optional[datetime.time]]
 
 
+@dataclasses.dataclass
+class Entry:
+
+    start: Optional[datetime.datetime] = None
+    end: Optional[datetime.datetime] = None
+    description: Optional[str] = None
+    billable: bool = False
+    project: Optional[str] = None
+    project_color: Optional[str] = None
+    tags: List[str] = dataclasses.field(default_factory=list)
+    eid: Optional[str] = None
+
+    def serialize(self, *, projects: Dict[str, Any], tags: Dict[str, Any]) -> Any:
+        if self.start is None:
+            # for PATCH
+            assert self.end is not None
+            return {
+                'end': _to_iso_timestamp(self.end),
+            }
+
+        data: Dict[str, Any] = {}
+
+        data['start'] = _to_iso_timestamp(self.start)
+
+        if self.end is not None:
+            data['end'] = _to_iso_timestamp(self.end)
+
+        if self.description is not None:
+            data['description'] = self.description
+
+        data['billable'] = self.billable
+
+        if self.project is not None:
+            data['projectId'] = projects[self.project]['id']
+
+        if self.tags is not None:
+            data['tagIds'] = [tags[tag]['id'] for tag in self.tags]
+
+        return data
+
+    @classmethod
+    def deserialize(
+            cls,
+            data: Any, *,
+            projects: Dict[str, Any],
+            tags: Dict[str, Any]
+    ) -> 'Entry':
+        entry = cls(data['description'])
+
+        entry.start = _from_iso_timestamp(data['timeInterval']['start'])
+
+        if data['timeInterval']['end'] is not None:
+            entry.end = _from_iso_timestamp(data['timeInterval']['end'])
+
+        entry.description = data['description']
+        entry.billable = data['billable']
+
+        if data['projectId'] is not None:
+            project = projects[data['projectId']]
+            entry.project = project['name']
+            entry.project_color = project['color']
+
+        if data['tagIds'] is not None:
+            for tag_id in data['tagIds']:
+                entry.tags.append(tags[tag_id]['name'])
+
+        entry.eid = data['id']
+
+        return entry
+
+
+
+
 class ArgumentParser:
 
     """Arguments are parsed based on how they look:
@@ -353,77 +426,6 @@ class ClockifyClient:
 
         if project is not None and project not in self._projects_by_name:
             raise UsageError(f"Unknown project {project}")
-
-
-@dataclasses.dataclass
-class Entry:
-
-    start: Optional[datetime.datetime] = None
-    end: Optional[datetime.datetime] = None
-    description: Optional[str] = None
-    billable: bool = False
-    project: Optional[str] = None
-    project_color: Optional[str] = None
-    tags: List[str] = dataclasses.field(default_factory=list)
-    eid: Optional[str] = None
-
-    def serialize(self, *, projects: Dict[str, Any], tags: Dict[str, Any]) -> Any:
-        if self.start is None:
-            # for PATCH
-            assert self.end is not None
-            return {
-                'end': _to_iso_timestamp(self.end),
-            }
-
-        data: Dict[str, Any] = {}
-
-        data['start'] = _to_iso_timestamp(self.start)
-
-        if self.end is not None:
-            data['end'] = _to_iso_timestamp(self.end)
-
-        if self.description is not None:
-            data['description'] = self.description
-
-        data['billable'] = self.billable
-
-        if self.project is not None:
-            data['projectId'] = projects[self.project]['id']
-
-        if self.tags is not None:
-            data['tagIds'] = [tags[tag]['id'] for tag in self.tags]
-
-        return data
-
-    @classmethod
-    def deserialize(
-            cls,
-            data: Any, *,
-            projects: Dict[str, Any],
-            tags: Dict[str, Any]
-    ) -> 'Entry':
-        entry = cls(data['description'])
-
-        entry.start = _from_iso_timestamp(data['timeInterval']['start'])
-
-        if data['timeInterval']['end'] is not None:
-            entry.end = _from_iso_timestamp(data['timeInterval']['end'])
-
-        entry.description = data['description']
-        entry.billable = data['billable']
-
-        if data['projectId'] is not None:
-            project = projects[data['projectId']]
-            entry.project = project['name']
-            entry.project_color = project['color']
-
-        if data['tagIds'] is not None:
-            for tag_id in data['tagIds']:
-                entry.tags.append(tags[tag_id]['name'])
-
-        entry.eid = data['id']
-
-        return entry
 
 
 def _from_iso_timestamp(timestamp: str) -> datetime.datetime:
