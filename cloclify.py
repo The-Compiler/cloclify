@@ -106,8 +106,6 @@ class Entry:
         return entry
 
 
-
-
 class ArgumentParser:
 
     """Arguments are parsed based on how they look:
