@@ -285,8 +285,6 @@ class ArgumentParser:
                 raise UsageError(f"Project {self.project} given without new entries")
             elif self.tags:
                 raise UsageError(f"Tags {self.tags} given without new entries")
-            elif self.workspace:
-                raise UsageError(f"Workspace {self.workspace} given without new entries")
 
 
 class ClockifyClient:
