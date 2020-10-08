@@ -201,6 +201,10 @@ class ArgumentParser:
 
         start_time = self._parse_time(start_str)
         end_time = self._parse_time(end_str)
+
+        if start_time is None and end_time is None:
+            raise UsageError("Either start or end time needs to be given")
+
         self._timespans.append((start_time, end_time))
 
     def _parse_date(self, arg: str) -> None:
