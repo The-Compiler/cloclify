@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import os
+import re
 import sys
 import datetime
 import argparse
@@ -112,13 +113,13 @@ class ArgumentParser:
 
     HH:MM-HH:MM    Add a new time entry based on the given times.
 
-    {HH:MM         "Clock in" at the given time.
-    }HH:MM         "Clock out" at the given time.
+    HH:MM-/        "Clock in" at the given time.
+    /-HH:MM        "Clock out" at the given time.
 
-    {now           Clock in now
+    now-/          Clock in now
     start          (convenience alias)
 
-    }now           Clock out now
+    /-now          Clock out now
     end            (convenience alias)
 
     +tag           Add the given tag to all specified time entries.
@@ -139,8 +140,8 @@ class ArgumentParser:
     $ cloclify start @qutebrowser issue1234   # Start working on a project
     $ cloclify stop                           # Take a break
 
-    $ cloclify {12:30 @qutebrowser issue1235  # Retroactively start "stopwatch mode"
-    $ cloclify }17:00                         # Retroactively stop working
+    $ cloclify 12:30-/ @qutebrowser issue1235  # Retroactively start "stopwatch mode"
+    $ cloclify /-17:00                         # Retroactively stop working
 
     # Add a manual time entry
     # Project: "secretproject"
@@ -184,6 +185,8 @@ class ArgumentParser:
             if self.date != now.date():
                 raise UsageError("Can't combine 'now' with different date")
             return now.time()
+        elif time_str == '/':
+            return None
 
         try:
             return datetime.datetime.strptime(time_str, '%H:%M').time()
@@ -199,14 +202,6 @@ class ArgumentParser:
         start_time = self._parse_time(start_str)
         end_time = self._parse_time(end_str)
         self._timespans.append((start_time, end_time))
-
-    def _parse_start(self, arg: str) -> None:
-        time = self._parse_time(arg)
-        self._timespans.append((time, None))
-
-    def _parse_stop(self, arg: str) -> None:
-        time = self._parse_time(arg)
-        self._timespans.append((None, time))
 
     def _parse_date(self, arg: str) -> None:
         if self.date != datetime.datetime.now().date():
@@ -249,8 +244,11 @@ class ArgumentParser:
         parsed = self._parser.parse_args(args)
         self.debug = parsed.debug
 
+        time_pattern = r'(\d\d?:\d\d?|/|now)'
+        timespan_re = re.compile(f'{time_pattern}-{time_pattern}')
+
         for arg in parsed.inputs:
-            if ':' in arg and '-' in arg:
+            if timespan_re.fullmatch(arg):
                 self._parse_timespan(arg)
             elif arg[0] == '+':
                 self._parse_tag(arg[1:])
@@ -262,14 +260,10 @@ class ArgumentParser:
                 self._parse_date(arg[1:])
             elif arg[0] == '^':
                 self._parse_workspace(arg[1:])
-            elif arg[0] == '{':
-                self._parse_start(arg[1:])
-            elif arg[0] == '}':
-                self._parse_stop(arg[1:])
             elif arg == 'start':
-                self._parse_start('now')
+                self._parse_timespan('now-/')
             elif arg == 'stop':
-                self._parse_stop('now')
+                self._parse_timespan('/-now')
             else:
                 self._parse_description(arg)
 
