@@ -431,6 +431,13 @@ def _to_iso_timestamp(dt: datetime.datetime) -> str:
     return dt.astimezone(dateutil.tz.UTC).isoformat().replace('+00:00', 'Z')
 
 
+def timedelta_str(delta):
+    h, rem = divmod(delta.seconds, 3600)
+    m, s = divmod(rem, 60)
+    prefix = f"{delta.days} days, " if delta.days != 0 else ""
+    return f"{prefix}{h:02}:{m:02}:{s:02}"
+
+
 def print_entries(
         date: datetime.date,
         entries: Iterable[Entry],
@@ -447,6 +454,8 @@ def print_entries(
     table.add_column("Tags", style='blue')
     table.add_column(":gear:")  # icons
 
+    total = datetime.timedelta()
+
     for entry in reversed(list(entries)):
         if debug:
             console.print(entry, highlight=True)
@@ -460,8 +469,11 @@ def print_entries(
 
         if entry.end is None:
             data.append(':clock3:')
+            now = datetime.datetime.now(dateutil.tz.tzlocal())
+            total += now - entry.start
         else:
             data.append(entry.end.strftime('%H:%M'))
+            total += entry.end - entry.start
 
         if entry.project is None:
             data.append('')
@@ -484,6 +496,7 @@ def print_entries(
         table.add_row(*data, style=style)
 
     console.print(table)
+    console.print(f"  Total: {timedelta_str(total)}")
 
 
 def run() -> None:
