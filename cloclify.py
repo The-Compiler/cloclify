@@ -3,7 +3,9 @@
 import os
 import re
 import sys
+import itertools
 import datetime
+import calendar
 import argparse
 import dataclasses
 from typing import (List, Dict, Any, Set, AbstractSet, Iterator, Iterable, Tuple,
@@ -161,6 +163,7 @@ class ArgumentParser:
         self.date: datetime.date = datetime.datetime.now().date()
         self.entries: List[Entry] = []
         self.debug: bool = False
+        self.dump: Optional[datetime.date] = None
         self.tags: List[str] = []
         self.project: Optional[str] = None
         self.workspace: Optional[str] = None
@@ -172,6 +175,12 @@ class ArgumentParser:
         self._parser.add_argument('inputs', help="An argument like described above.",
                                   metavar='input', nargs='*')
         self._parser.add_argument('--debug', help='Enable debug output', action='store_true')
+        self._parser.add_argument(
+                '--dump',
+                help='Dump an entire month',
+                action='store',
+                metavar='YYYY-MM'
+        )
 
     def _combine_date(self, time: Optional[datetime.time]) -> Optional[datetime.datetime]:
         """Combine the given timestamp with the saved date."""
@@ -247,6 +256,17 @@ class ArgumentParser:
     def parse(self, args: List[str] = None) -> None:
         parsed = self._parser.parse_args(args)
         self.debug = parsed.debug
+
+        if parsed.dump:
+            if parsed.inputs:
+                raise UsageError(f"Inputs {inputs} given with --dump")
+
+            try:
+                self.dump = datetime.datetime.strptime(parsed.dump, '%Y-%m')
+            except ValueError:
+                raise UsageError(f"Unparseable month {parsed.dump} (use YYYY-MM)")
+
+            return
 
         time_pattern = r'(\d\d?:\d\d?|/|now)'
         timespan_re = re.compile(f'{time_pattern}-{time_pattern}')
@@ -397,10 +417,27 @@ class ClockifyClient:
             added_ids.add(r_data['id'])
         return added_ids
 
-    def get_entries(self, date: datetime.date) -> Iterator[Entry]:
-        endpoint = f'workspaces/{self._workspace_id}/user/{self._user_id}/time-entries'
+    def get_entries_day(self, date: datetime.date) -> Iterator[Entry]:
         start = datetime.datetime.combine(date, datetime.time())
         end = start + datetime.timedelta(days=1)
+        return self._get_entries(start, end)
+
+    def get_entries_month(self, date: datetime.date) -> Iterator[Entry]:
+        assert date.day == 1, date
+        first_date = datetime.date(date.year, date.month, 1)
+        _first_weekday, last_day = calendar.monthrange(date.year, date.month)
+        last_date = datetime.date(date.year, date.month, last_day)
+
+        start = datetime.datetime.combine(first_date, datetime.time())
+        end = datetime.datetime.combine(last_date, datetime.time.max)
+        return self._get_entries(start, end)
+
+    def _get_entries(
+            self,
+            start: datetime.datetime,
+            end: datetime.datetime
+    ) -> Iterator[Entry]:
+        endpoint = f'workspaces/{self._workspace_id}/user/{self._user_id}/time-entries'
         params = {
             'start': _to_iso_timestamp(start),
             'end': _to_iso_timestamp(end),
@@ -499,6 +536,16 @@ def print_entries(
     console.print(f"  Total: {timedelta_str(total)}")
 
 
+def dump(client, parser) -> None:
+    """Dump all entries for the month given in 'date'."""
+    entries = client.get_entries_month(parser.dump)
+
+    for date, day_entries in itertools.groupby(
+            reversed(list(entries)), key=lambda e: e.start.date()):
+        print_entries(date, day_entries, debug=parser.debug)
+        print()
+
+
 def run() -> None:
     parser = ArgumentParser()
     parser.parse()
@@ -506,13 +553,16 @@ def run() -> None:
     client = ClockifyClient(debug=parser.debug, workspace=parser.workspace)
     client.fetch_info()
 
+    if parser.dump:
+        return dump(client, parser)
+
     if parser.entries:
         client.validate(tags=parser.tags, project=parser.project)
         added = client.add_entries(parser.date, parser.entries)
     else:
         added = set()
 
-    entries = client.get_entries(parser.date)
+    entries = client.get_entries_day(parser.date)
     print_entries(parser.date, entries, debug=parser.debug, highlight_ids=added)
 
 
