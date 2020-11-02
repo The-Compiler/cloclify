@@ -260,17 +260,6 @@ class ArgumentParser:
         parsed = self._parser.parse_args(args)
         self.debug = parsed.debug
 
-        if parsed.dump:
-            if parsed.inputs:
-                raise UsageError(f"Inputs {inputs} given with --dump")
-
-            try:
-                self.dump = datetime.datetime.strptime(parsed.dump, '%Y-%m')
-            except ValueError:
-                raise UsageError(f"Unparseable month {parsed.dump} (use YYYY-MM)")
-
-            return
-
         time_pattern = r'(\d\d?:\d\d?|/|now)'
         timespan_re = re.compile(f'{time_pattern}-{time_pattern}')
 
@@ -302,6 +291,12 @@ class ArgumentParser:
             project=self.project,
         ) for (start_time, end_time) in self._timespans]
 
+        if parsed.dump:
+            try:
+                self.dump = datetime.datetime.strptime(parsed.dump, '%Y-%m')
+            except ValueError:
+                raise UsageError(f"Unparseable month {parsed.dump} (use YYYY-MM)")
+
         has_new_entries = any(entry.start is not None for entry in self.entries)
         if not has_new_entries:
             if self._description:
@@ -312,6 +307,9 @@ class ArgumentParser:
                 raise UsageError(f"Project {self.project} given without new entries")
             elif self.tags:
                 raise UsageError(f"Tags {self.tags} given without new entries")
+
+        if parsed.dump and self.date != datetime.datetime.now().date():
+            raise UsageError(f"Date {self.date} given with --dump")
 
 
 class ClockifyClient:
