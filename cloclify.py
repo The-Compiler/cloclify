@@ -483,7 +483,8 @@ def print_entries(
     ) -> None:
     console = rich.console.Console(highlight=False)
 
-    table = rich.table.Table(title=f'Time entries for {date}', box=rich.box.ROUNDED)
+    date_str = date.strftime('%a, %Y-%m-%d')
+    table = rich.table.Table(title=f'Time entries for {date_str}', box=rich.box.ROUNDED)
     table.add_column("Description", style='yellow')
     table.add_column("Start", style='cyan')
     table.add_column("End", style='cyan')
