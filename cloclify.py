@@ -19,6 +19,9 @@ import rich.console
 import rich.table
 import rich.box
 import rich.panel
+import rich.rule
+import rich.padding
+import rich.align
 
 
 class Error(Exception):
@@ -476,15 +479,19 @@ def timedelta_str(delta):
 
 
 def print_entries(
+        console: rich.console.Console,
         date: datetime.date,
         entries: Iterable[Entry],
+        *,
         debug: bool,
         highlight_ids: AbstractSet[str] = frozenset(),
+        center: bool = False,
     ) -> None:
-    console = rich.console.Console(highlight=False)
-
     date_str = date.strftime('%a, %Y-%m-%d')
-    table = rich.table.Table(title=f'Time entries for {date_str}', box=rich.box.ROUNDED)
+    table = rich.table.Table(
+        title=date_str,
+        box=rich.box.ROUNDED,
+    )
     table.add_column("Description", style='yellow')
     table.add_column("Start", style='cyan')
     table.add_column("End", style='cyan')
@@ -533,18 +540,24 @@ def print_entries(
 
         table.add_row(*data, style=style)
 
-    console.print(table)
-    console.print(f"  Total: {timedelta_str(total)}")
+    renderable = rich.align.Align(table, "center") if center else table
+    console.print(renderable)
+
+    console.print(f"Total: {timedelta_str(total)}",
+                  justify='center' if center else None)
 
 
-def dump(client, parser) -> None:
+def dump(console, client, parser) -> None:
     """Dump all entries for the month given in 'date'."""
     entries = client.get_entries_month(parser.dump)
 
-    for date, day_entries in itertools.groupby(
-            reversed(list(entries)), key=lambda e: e.start.date()):
-        print_entries(date, day_entries, debug=parser.debug)
-        print()
+    separator = rich.padding.Padding(rich.rule.Rule(), (1, 0))
+
+    with console.pager(styles=True):
+        for date, day_entries in itertools.groupby(
+                reversed(list(entries)), key=lambda e: e.start.date()):
+            print_entries(console, date, day_entries, debug=parser.debug, center=True)
+            console.print(separator)
 
 
 def run() -> None:
@@ -554,8 +567,10 @@ def run() -> None:
     client = ClockifyClient(debug=parser.debug, workspace=parser.workspace)
     client.fetch_info()
 
+    console = rich.console.Console(highlight=False)
+
     if parser.dump:
-        return dump(client, parser)
+        return dump(console, client, parser)
 
     if parser.entries:
         client.validate(tags=parser.tags, project=parser.project)
@@ -564,7 +579,13 @@ def run() -> None:
         added = set()
 
     entries = client.get_entries_day(parser.date)
-    print_entries(parser.date, entries, debug=parser.debug, highlight_ids=added)
+    print_entries(
+        console,
+        parser.date,
+        entries,
+        debug=parser.debug,
+        highlight_ids=added
+    )
 
 
 def main() -> int:
