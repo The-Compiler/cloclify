@@ -8,6 +8,7 @@ import datetime
 import calendar
 import argparse
 import dataclasses
+import contextlib
 from typing import (List, Dict, Any, Set, AbstractSet, Iterator, Iterable, Tuple,
                     Optional)
 
@@ -167,6 +168,7 @@ class ArgumentParser:
         self.entries: List[Entry] = []
         self.debug: bool = False
         self.dump: Optional[datetime.date] = None
+        self.pager: bool = True
         self.tags: List[str] = []
         self.project: Optional[str] = None
         self.workspace: Optional[str] = None
@@ -183,6 +185,11 @@ class ArgumentParser:
                 help='Dump an entire month',
                 action='store',
                 metavar='YYYY-MM'
+        )
+        self._parser.add_argument(
+                '--no-pager',
+                help="Disable pager for --dump",
+                action='store_true'
         )
 
     def _combine_date(self, time: Optional[datetime.time]) -> Optional[datetime.datetime]:
@@ -259,6 +266,7 @@ class ArgumentParser:
     def parse(self, args: List[str] = None) -> None:
         parsed = self._parser.parse_args(args)
         self.debug = parsed.debug
+        self.pager = not parsed.no_pager
 
         time_pattern = r'(\d\d?:\d\d?|/|now)'
         timespan_re = re.compile(f'{time_pattern}-{time_pattern}')
@@ -551,7 +559,9 @@ def dump(console, client, parser) -> None:
 
     separator = rich.padding.Padding(rich.rule.Rule(), (1, 0))
 
-    with console.pager(styles=True):
+    pager = console.pager(styles=True) if parser.pager else contextlib.nullcontext()
+
+    with pager:
         for date, day_entries in itertools.groupby(
                 reversed(list(entries)), key=lambda e: e.start.date()):
             print_entries(console, date, day_entries, debug=parser.debug, center=True)
