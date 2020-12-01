@@ -564,7 +564,7 @@ def dump(console, client, parser) -> None:
     with pager:
         for date, day_entries in itertools.groupby(
                 reversed(list(entries)), key=lambda e: e.start.date()):
-            print_entries(console, date, day_entries, debug=parser.debug, center=True)
+            print_entries(console, date, reversed(list(day_entries)), debug=parser.debug, center=True)
             console.print(separator)
 
 
