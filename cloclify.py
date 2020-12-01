@@ -482,7 +482,7 @@ def timedelta_str(delta):
     m, s = divmod(rem, 60)
     dec = h + m/60
     prefix = f"{delta.days} days, " if delta.days != 0 else ""
-    return f"{prefix}{h:02}:{m:02}:{s:02} ({dec})"
+    return f"{prefix}{h:02}:{m:02}:{s:02} ({round(dec, 2)})"
 
 
 def print_entries(
