@@ -1,9 +1,9 @@
 """Test Cases for Cloclify"""
 
-import cloclify
+from cloclify.output import main
 
 
 def test_main_succeds() -> None:
     """It exits with a status code of zero."""
-    result = cloclify.main()
+    result = main()
     assert result == 0
