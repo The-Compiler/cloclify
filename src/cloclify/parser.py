@@ -3,6 +3,8 @@ import datetime
 import re
 from typing import (List, Optional, Tuple)
 
+from cloclify.client import Entry
+
 Timespan = Tuple[Optional[datetime.time], Optional[datetime.time]]
 
 
