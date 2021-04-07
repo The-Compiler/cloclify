@@ -1,9 +1,10 @@
 import argparse
 import datetime
 import re
-from typing import (List, Optional, Tuple)
+from typing import List, Optional, Tuple
 
 from cloclify.client import Entry
+from cloclify.utils import UsageError
 
 Timespan = Tuple[Optional[datetime.time], Optional[datetime.time]]
 

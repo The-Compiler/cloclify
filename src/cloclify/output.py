@@ -1,10 +1,9 @@
-import datetime
 import contextlib
+import datetime
 import itertools
-import dateutil
-
 from typing import AbstractSet, Iterable
 
+import dateutil
 import rich.align
 import rich.box
 import rich.console

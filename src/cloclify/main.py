@@ -3,10 +3,11 @@ import sys
 
 import rich.console
 
-from cloclify.parser import ArgumentParser
 from cloclify.client import ClockifyClient
-from cloclify.utils import Error
 from cloclify.output import dump, print_entries
+from cloclify.parser import ArgumentParser
+from cloclify.utils import Error
+
 
 def run() -> None:
     parser = ArgumentParser()

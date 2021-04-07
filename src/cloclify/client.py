@@ -1,11 +1,11 @@
 import calendar
 import dataclasses
 import datetime
-
 import os
-from typing import (Any, Dict, Iterator, List, Optional, Set)
+from typing import Any, Dict, Iterator, List, Optional, Set
 
 import requests
+import rich
 
 from cloclify.utils import (APIError, UsageError, _from_iso_timestamp,
                             _to_iso_timestamp)
