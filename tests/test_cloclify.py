@@ -1,6 +1,6 @@
 """Test Cases for Cloclify"""
 
-from cloclify.output import main
+from cloclify.main import main
 
 
 def test_main_succeds() -> None:
