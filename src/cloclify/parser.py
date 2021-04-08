@@ -3,6 +3,8 @@ import datetime
 import re
 from typing import List, Optional, Tuple
 
+import dateparser
+
 from cloclify.client import Entry
 from cloclify.utils import UsageError
 
