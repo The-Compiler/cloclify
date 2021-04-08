@@ -24,10 +24,9 @@ setuptools.setup(
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.6",
-
     entry_points={
-         'console_scripts': [  
-             'cloclify=cloclify.main:main',
-         ],
-     },
+        "console_scripts": [
+            "cloclify=cloclify.main:main",
+        ],
+    },
 )
