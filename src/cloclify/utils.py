@@ -17,10 +17,10 @@ class APIError(Error):
         super().__init__(f"API {method} to {path} failed with {status}: {data}")
 
 
-def _from_iso_timestamp(timestamp: str) -> datetime.datetime:
+def from_iso_timestamp(timestamp: str) -> datetime.datetime:
     utc = dateutil.parser.isoparse(timestamp)
     return utc.astimezone(dateutil.tz.tzlocal())
 
 
-def _to_iso_timestamp(dt: datetime.datetime) -> str:
+def to_iso_timestamp(dt: datetime.datetime) -> str:
     return dt.astimezone(dateutil.tz.UTC).isoformat().replace("+00:00", "Z")
