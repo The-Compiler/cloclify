@@ -3,40 +3,39 @@ import sys
 
 import rich.console
 
-from cloclify.client import ClockifyClient
-from cloclify.output import dump, print_entries
-from cloclify.parser import ArgumentParser
-from cloclify.utils import Error
+from cloclify import client, output, parser, utils
 
 
 def run() -> None:
-    parser = ArgumentParser()
-    parser.parse()
+    argparser = parser.ArgumentParser()
+    argparser.parse()
 
-    client = ClockifyClient(debug=parser.debug, workspace=parser.workspace)
-    client.fetch_info()
+    cliclient = client.ClockifyClient(
+        debug=argparser.debug, workspace=argparser.workspace
+    )
+    cliclient.fetch_info()
 
     console = rich.console.Console(highlight=False)
 
-    if parser.dump:
-        return dump(console, client, parser)
+    if argparser.dump:
+        return output.dump(console, cliclient, argparser)
 
-    if parser.entries:
-        client.validate(tags=parser.tags, project=parser.project)
-        added = client.add_entries(parser.date, parser.entries)
+    if argparser.entries:
+        cliclient.validate(tags=argparser.tags, project=argparser.project)
+        added = cliclient.add_entries(argparser.date, argparser.entries)
     else:
         added = set()
 
-    entries = client.get_entries_day(parser.date)
-    print_entries(
-        console, parser.date, entries, debug=parser.debug, highlight_ids=added
+    entries = cliclient.get_entries_day(argparser.date)
+    output.print_entries(
+        console, argparser.date, entries, debug=argparser.debug, highlight_ids=added
     )
 
 
 def main() -> int:
     try:
         run()
-    except Error as e:
+    except utils.Error as e:
         console = rich.console.Console(file=sys.stderr, highlight=False)
         console.print(f"[red]Error:[/red] {e}")
         return 1

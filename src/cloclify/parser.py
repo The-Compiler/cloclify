@@ -5,8 +5,7 @@ from typing import List, Optional, Tuple
 
 import dateparser
 
-from cloclify.client import Entry
-from cloclify.utils import UsageError
+from cloclify import client, utils
 
 Timespan = Tuple[Optional[datetime.time], Optional[datetime.time]]
 
@@ -63,7 +62,7 @@ class ArgumentParser:
         self._billable: bool = False
 
         self.date: datetime.date = datetime.datetime.now().date()
-        self.entries: List[Entry] = []
+        self.entries: List[client.Entry] = []
         self.debug: bool = False
         self.dump: Optional[datetime.date] = None
         self.pager: bool = True
@@ -103,7 +102,7 @@ class ArgumentParser:
         if time_str == "now":
             now = datetime.datetime.now()
             if self.date != now.date():
-                raise UsageError("Can't combine 'now' with different date")
+                raise utils.UsageError("Can't combine 'now' with different date")
             return now.time()
         elif time_str == "/":
             return None
@@ -111,34 +110,34 @@ class ArgumentParser:
         try:
             return datetime.datetime.strptime(time_str, "%H:%M").time()
         except ValueError as e:
-            raise UsageError(str(e))
+            raise utils.UsageError(str(e))
 
     def _parse_timespan(self, arg: str) -> None:
         try:
             start_str, end_str = arg.split("-")
         except ValueError:
-            raise UsageError(f"Couldn't parse timespan {arg} (too many '-')")
+            raise utils.UsageError(f"Couldn't parse timespan {arg} (too many '-')")
 
         start_time = self._parse_time(start_str)
         end_time = self._parse_time(end_str)
 
         if start_time is None and end_time is None:
-            raise UsageError("Either start or end time needs to be given")
+            raise utils.UsageError("Either start or end time needs to be given")
 
         self._timespans.append((start_time, end_time))
 
     def _parse_date(self, arg: str) -> None:
         if self.date != datetime.datetime.now().date():
-            raise UsageError("Multiple dates")
+            raise utils.UsageError("Multiple dates")
 
         midnight = datetime.datetime.combine(datetime.datetime.now(), datetime.time())
         parsed = dateparser.parse(arg, settings={"RELATIVE_BASE": midnight})
 
         if parsed is None:
-            raise UsageError(f"Couldn't parse date {arg}")
+            raise utils.UsageError(f"Couldn't parse date {arg}")
 
         if parsed.time() != datetime.time():
-            raise UsageError(f"Date {arg} contains unexpected time")
+            raise utils.UsageError(f"Date {arg} contains unexpected time")
 
         self.date = parsed.date()
 
@@ -156,12 +155,12 @@ class ArgumentParser:
 
     def _parse_workspace(self, arg: str) -> None:
         if self.workspace is not None:
-            raise UsageError(f"Multiple workspaces: {self.workspace}, {arg}")
+            raise utils.UsageError(f"Multiple workspaces: {self.workspace}, {arg}")
         self.workspace = arg
 
     def _parse_billable(self, arg: str) -> None:
         if arg:
-            raise UsageError(f"Invalid billable arg {arg}")
+            raise utils.UsageError(f"Invalid billable arg {arg}")
         self._billable = True
 
     def parse(self, args: List[str] = None) -> None:
@@ -193,7 +192,7 @@ class ArgumentParser:
                 self._parse_description(arg)
 
         self.entries = [
-            Entry(
+            client.Entry(
                 start=self._combine_date(start_time),
                 end=self._combine_date(end_time),
                 description=self._description,
@@ -207,20 +206,20 @@ class ArgumentParser:
             try:
                 self.dump = datetime.datetime.strptime(parsed.dump, "%Y-%m")
             except ValueError:
-                raise UsageError(f"Unparseable month {parsed.dump} (use YYYY-MM)")
+                raise utils.UsageError(f"Unparseable month {parsed.dump} (use YYYY-MM)")
 
         has_new_entries = any(entry.start is not None for entry in self.entries)
         if not has_new_entries:
             if self._description:
-                raise UsageError(
+                raise utils.UsageError(
                     f"Description {self._description} given without new entries"
                 )
             elif self._billable:
-                raise UsageError("Billable given without new entries")
+                raise utils.UsageError("Billable given without new entries")
             elif self.project:
-                raise UsageError(f"Project {self.project} given without new entries")
+                raise utils.UsageError(f"Project {self.project} given without new entries")
             elif self.tags:
-                raise UsageError(f"Tags {self.tags} given without new entries")
+                raise utils.UsageError(f"Tags {self.tags} given without new entries")
 
         if parsed.dump and self.date != datetime.datetime.now().date():
-            raise UsageError(f"Date {self.date} given with --dump")
+            raise utils.UsageError(f"Date {self.date} given with --dump")

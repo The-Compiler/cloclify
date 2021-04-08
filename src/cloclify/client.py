@@ -7,8 +7,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set
 import requests
 import rich
 
-from cloclify.utils import (APIError, UsageError, _from_iso_timestamp,
-                            _to_iso_timestamp)
+from cloclify import utils
 
 
 @dataclasses.dataclass
@@ -28,15 +27,15 @@ class Entry:
             # for PATCH
             assert self.end is not None
             return {
-                "end": _to_iso_timestamp(self.end),
+                "end": utils.to_iso_timestamp(self.end),
             }
 
         data: Dict[str, Any] = {}
 
-        data["start"] = _to_iso_timestamp(self.start)
+        data["start"] = utils.to_iso_timestamp(self.start)
 
         if self.end is not None:
-            data["end"] = _to_iso_timestamp(self.end)
+            data["end"] = utils.to_iso_timestamp(self.end)
 
         if self.description is not None:
             data["description"] = self.description
@@ -57,10 +56,10 @@ class Entry:
     ) -> "Entry":
         entry = cls(data["description"])
 
-        entry.start = _from_iso_timestamp(data["timeInterval"]["start"])
+        entry.start = utils.from_iso_timestamp(data["timeInterval"]["start"])
 
         if data["timeInterval"]["end"] is not None:
-            entry.end = _from_iso_timestamp(data["timeInterval"]["end"])
+            entry.end = utils.from_iso_timestamp(data["timeInterval"]["end"])
 
         entry.description = data["description"]
         entry.billable = data["billable"]
@@ -88,13 +87,13 @@ class ClockifyClient:
         try:
             key = os.environ["CLOCKIFY_API_KEY"]
         except KeyError as e:
-            raise UsageError(f"{e} not defined in environment")
+            raise utils.UsageError(f"{e} not defined in environment")
 
         if workspace is None:
             try:
                 self._workspace_name = os.environ["CLOCKIFY_WORKSPACE"]
             except KeyError as e:
-                raise UsageError(
+                raise utils.UsageError(
                     f"{e} not defined in environment and " "'^workspace' not given"
                 )
         else:
@@ -117,7 +116,7 @@ class ClockifyClient:
         func = getattr(requests, verb.lower())
         response = func(f"{self.API_URL}/{path}", headers=self._headers, **kwargs)
         if not response.ok:
-            raise APIError(verb.upper(), path, response.status_code, response.json())
+            raise utils.APIError(verb.upper(), path, response.status_code, response.json())
 
         r_data = response.json()
         if self._debug:
@@ -139,7 +138,7 @@ class ClockifyClient:
             if workspace["name"] == self._workspace_name:
                 self._workspace_id = workspace["id"]
                 return
-        raise UsageError(
+        raise utils.UsageError(
             f"No workspace [yellow]{self._workspace_name}[/yellow] " "found!"
         )
 
@@ -209,8 +208,8 @@ class ClockifyClient:
     ) -> Iterator[Entry]:
         endpoint = f"workspaces/{self._workspace_id}/user/{self._user_id}/time-entries"
         params = {
-            "start": _to_iso_timestamp(start),
-            "end": _to_iso_timestamp(end),
+            "start": utils.to_iso_timestamp(start),
+            "end": utils.to_iso_timestamp(end),
         }
         data = self._api_get(endpoint, params)
         for entry in data:
@@ -221,7 +220,7 @@ class ClockifyClient:
     def validate(self, *, tags: List[str], project: Optional[str]) -> None:
         for tag in tags:
             if tag not in self._tags_by_name:
-                raise UsageError(f"Unknown tag {tag}")
+                raise utils.UsageError(f"Unknown tag {tag}")
 
         if project is not None and project not in self._projects_by_name:
-            raise UsageError(f"Unknown project {project}")
+            raise utils.UsageError(f"Unknown project {project}")

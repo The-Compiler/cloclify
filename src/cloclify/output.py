@@ -12,7 +12,7 @@ import rich.panel
 import rich.rule
 import rich.table
 
-from cloclify.client import Entry
+from cloclify import client
 
 
 def timedelta_str(delta):
@@ -26,7 +26,7 @@ def timedelta_str(delta):
 def print_entries(
     console: rich.console.Console,
     date: datetime.date,
-    entries: Iterable[Entry],
+    entries: Iterable[client.Entry],
     *,
     debug: bool,
     highlight_ids: AbstractSet[str] = frozenset(),
