@@ -4,8 +4,6 @@ on: [push, pull_request]
 jobs:
   tests:
     runs-on: ubuntu-latest
-    environment:
-      name: test
     env: 
       CLOCKIFY_API_KEY: ${{ secrets.CLOCKIFY_API_KEY  }}
       CLOCKIFY_WORKSPACE: ${{ secrets.CLOCKIFY_WORKSPACE  }}
@@ -23,6 +21,9 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    env: 
+      CLOCKIFY_API_KEY: ${{ secrets.CLOCKIFY_API_KEY  }}
+      CLOCKIFY_WORKSPACE: ${{ secrets.CLOCKIFY_WORKSPACE  }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
