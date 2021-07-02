@@ -6,6 +6,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: test
+      env: 
+      CLOCKIFY_API_KEY: ${{ secrets.CLOCKIFY_API_KEY  }}
     strategy:
       fail-fast: false
       matrix:
