@@ -8,6 +8,7 @@ jobs:
       name: test
     env: 
       CLOCKIFY_API_KEY: ${{ secrets.CLOCKIFY_API_KEY  }}
+      CLOCKIFY_WORKSPACE: ${{ secrets.CLOCKIFY_WORKSPACE  }}
     strategy:
       fail-fast: false
       matrix:
