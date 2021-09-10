@@ -138,8 +138,11 @@ class ClockifyClient:
             if workspace["name"] == self._workspace_name:
                 self._workspace_id = workspace["id"]
                 return
+
+        names = [workspace["name"] for workspace in workspaces]
         raise utils.UsageError(
-            f"No workspace [yellow]{self._workspace_name}[/yellow] " "found!"
+            f"No workspace [yellow]{self._workspace_name}[/yellow] found!\n"
+            f"Available workspaces: [yellow]{', '.join(names)}[/yellow]"
         )
 
     def _fetch_user_id(self) -> None:
