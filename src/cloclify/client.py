@@ -226,4 +226,7 @@ class ClockifyClient:
                 raise utils.UsageError(f"Unknown tag {tag}")
 
         if project is not None and project not in self._projects_by_name:
-            raise utils.UsageError(f"Unknown project {project}")
+            raise utils.UsageError(
+                f"Unknown project {project}\n"
+                f"Available projects: "
+                f"[yellow]{', '.join(self._projects_by_name)}[/yellow]")
