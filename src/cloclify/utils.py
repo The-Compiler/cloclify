@@ -17,9 +17,9 @@ class APIError(Error):
         super().__init__(f"API {method} to {path} failed with {status}: {data}")
 
 
-def from_iso_timestamp(timestamp: str) -> datetime.datetime:
+def from_iso_timestamp(timestamp: str, timezone: datetime.tzinfo) -> datetime.datetime:
     utc = dateutil.parser.isoparse(timestamp)
-    return utc.astimezone(dateutil.tz.tzlocal())
+    return utc.astimezone(timezone)
 
 
 def to_iso_timestamp(dt: datetime.datetime) -> str:

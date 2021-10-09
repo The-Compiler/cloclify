@@ -6,6 +6,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set
 
 import requests
 import rich
+import dateutil.tz
 
 from cloclify import utils
 
@@ -52,14 +53,21 @@ class Entry:
 
     @classmethod
     def deserialize(
-        cls, data: Any, *, projects: Dict[str, Any], tags: Dict[str, Any]
+        cls, data: Any, *, projects: Dict[str, Any], tags: Dict[str, Any],
+        user_tz: datetime.tzinfo,
     ) -> "Entry":
         entry = cls(data["description"])
 
-        entry.start = utils.from_iso_timestamp(data["timeInterval"]["start"])
+        entry.start = utils.from_iso_timestamp(
+            data["timeInterval"]["start"],
+            timezone=user_tz,
+        )
 
         if data["timeInterval"]["end"] is not None:
-            entry.end = utils.from_iso_timestamp(data["timeInterval"]["end"])
+            entry.end = utils.from_iso_timestamp(
+                data["timeInterval"]["end"],
+                timezone=user_tz,
+            )
 
         entry.description = data["description"]
         entry.billable = data["billable"]
@@ -145,9 +153,10 @@ class ClockifyClient:
             f"Available workspaces: [yellow]{', '.join(names)}[/yellow]"
         )
 
-    def _fetch_user_id(self) -> None:
+    def _fetch_user_info(self) -> None:
         info = self._api_get("user")
         self._user_id = info["id"]
+        self._user_tz = dateutil.tz.gettz(info["settings"]["timeZone"])
 
     def _fetch_projects(self) -> None:
         projects = self._api_get(f"workspaces/{self._workspace_id}/projects")
@@ -163,7 +172,7 @@ class ClockifyClient:
 
     def fetch_info(self) -> None:
         self._fetch_workspace_id()
-        self._fetch_user_id()
+        self._fetch_user_info()
         self._fetch_projects()
         self._fetch_tags()
 
@@ -217,7 +226,10 @@ class ClockifyClient:
         data = self._api_get(endpoint, params)
         for entry in data:
             yield Entry.deserialize(
-                entry, projects=self._projects_by_id, tags=self._tags_by_id
+                entry,
+                projects=self._projects_by_id,
+                tags=self._tags_by_id,
+                user_tz=self._user_tz,
             )
 
     def validate(self, *, tags: List[str], project: Optional[str]) -> None:
