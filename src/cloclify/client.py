@@ -220,8 +220,8 @@ class ClockifyClient:
     ) -> Iterator[Entry]:
         endpoint = f"workspaces/{self._workspace_id}/user/{self._user_id}/time-entries"
         params = {
-            "start": utils.to_iso_timestamp(start),
-            "end": utils.to_iso_timestamp(end),
+            "start": utils.to_iso_timestamp(start, timezone=self._user_tz),
+            "end": utils.to_iso_timestamp(end, timezone=self._user_tz),
         }
         data = self._api_get(endpoint, params)
         for entry in data:
