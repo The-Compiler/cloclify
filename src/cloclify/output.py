@@ -103,6 +103,31 @@ def print_entries(
         )
 
 
+def conky(console, client, parser) -> None:
+    """Output for conky's exec(i) with lemonbar."""
+    entries = list(client.get_entries_day(parser.date))
+    running = [e for e in entries if e.end is None]
+
+    parts = []
+    if running:
+        for entry in running:
+            project = entry.project or "Other"
+            color = entry.project_color or "#fffff"
+            parts.append('%{F' + color + '}' + project + '%{F-}')
+
+    finished_count = len(entries) - len(running)
+    if finished_count:
+        if parts:
+            parts.append("+")
+        parts.append(str(finished_count))
+    elif datetime.date.today().weekday() in [5, 6]:  # weekend
+        parts.append("none")
+    else:  # week
+        parts.append("%{B#FF0000} none %{B-}")
+
+    console.print(' '.join(parts))
+
+
 def dump(console, client, parser) -> None:
     """Dump all entries for the month given in 'date'."""
     entries = client.get_entries_month(parser.dump)

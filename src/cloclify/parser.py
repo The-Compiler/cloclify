@@ -89,6 +89,9 @@ class ArgumentParser:
         self._parser.add_argument(
             "--no-pager", help="Disable pager for --dump", action="store_true"
         )
+        self._parser.add_argument(
+            "--conky", help="Output a string for conky's execpi", action="store_true"
+        )
 
     def _combine_date(
         self, time: Optional[datetime.time]
@@ -167,6 +170,7 @@ class ArgumentParser:
         parsed = self._parser.parse_args(args)
         self.debug = parsed.debug
         self.pager = not parsed.no_pager
+        self.conky = parsed.conky
 
         time_pattern = r"(\d\d?:\d\d?|/|now)"
         timespan_re = re.compile(f"{time_pattern}-{time_pattern}")

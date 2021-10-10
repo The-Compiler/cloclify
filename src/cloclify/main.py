@@ -19,6 +19,8 @@ def run() -> None:
 
     if argparser.dump:
         return output.dump(console, cliclient, argparser)
+    elif argparser.conky:
+        return output.conky(console, cliclient, argparser)
 
     if argparser.entries:
         cliclient.validate(tags=argparser.tags, project=argparser.project)
