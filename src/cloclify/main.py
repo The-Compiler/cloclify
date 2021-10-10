@@ -30,7 +30,12 @@ def run() -> None:
 
     entries = cliclient.get_entries_day(argparser.date)
     output.print_entries(
-        console, argparser.date, entries, debug=argparser.debug, highlight_ids=added
+        console,
+        argparser.date,
+        entries,
+        debug=argparser.debug,
+        highlight_ids=added,
+        workspace_name=cliclient.workspace_name,
     )
 
 

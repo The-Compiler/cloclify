@@ -99,13 +99,11 @@ class ClockifyClient:
 
         if workspace is None:
             try:
-                self._workspace_name = os.environ["CLOCKIFY_WORKSPACE"]
+                self.workspace_name = os.environ["CLOCKIFY_WORKSPACE"]
             except KeyError as e:
-                raise utils.UsageError(
-                    f"{e} not defined in environment and " "'^workspace' not given"
-                )
+                self.workspace_name = None
         else:
-            self._workspace_name = workspace
+            self.workspace_name = workspace
 
         self._headers = {"X-Api-Key": key}
         self._user_id = None
@@ -141,22 +139,35 @@ class ClockifyClient:
         return self._api_call("patch", path, json=data)
 
     def _fetch_workspace_id(self) -> None:
+        assert self.workspace_name is not None
         workspaces = self._api_get("workspaces")
         for workspace in workspaces:
-            if workspace["name"] == self._workspace_name:
+            if workspace["name"] == self.workspace_name:
                 self._workspace_id = workspace["id"]
                 return
 
         names = [workspace["name"] for workspace in workspaces]
         raise utils.UsageError(
-            f"No workspace [yellow]{self._workspace_name}[/yellow] found!\n"
+            f"No workspace [yellow]{self.workspace_name}[/yellow] found!\n"
             f"Available workspaces: [yellow]{', '.join(names)}[/yellow]"
         )
+
+    def _fetch_workspace_name(self) -> None:
+        assert self._workspace_id is not None
+        workspaces = self._api_get("workspaces")
+        for workspace in workspaces:
+            if workspace["id"] == self._workspace_id:
+                self.workspace_name = workspace["name"]
+                return
+        assert False, f"Unknown workspace ID {self._workspace_id}"
 
     def _fetch_user_info(self) -> None:
         info = self._api_get("user")
         self._user_id = info["id"]
         self._user_tz = dateutil.tz.gettz(info["settings"]["timeZone"])
+        if self.workspace_name is None:
+            self._workspace_id = info["defaultWorkspace"]
+            self._fetch_workspace_name()
 
     def _fetch_projects(self) -> None:
         projects = self._api_get(f"workspaces/{self._workspace_id}/projects")
@@ -171,7 +182,8 @@ class ClockifyClient:
             self._tags_by_id[tag["id"]] = tag
 
     def fetch_info(self) -> None:
-        self._fetch_workspace_id()
+        if self.workspace_name is not None:
+            self._fetch_workspace_id()
         self._fetch_user_info()
         self._fetch_projects()
         self._fetch_tags()

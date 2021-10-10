@@ -29,7 +29,7 @@ class ArgumentParser:
     @project       Set the given project for all specified time entries.
     $              Mark all specified time entries as billable.
     ^workspace     Add all entries to the given workspace.
-                   (If not given, the CLOCKIFY_WORKSPACE envvar is used)
+                   (If not given, the current workspace or CLOCKIFY_WORKSPACE envvar is used)
 
     .date          Show/edit time entries for the given date.
                    Can be relative (".yesterday", ".5 days ago") or absolute
