@@ -92,6 +92,9 @@ class ArgumentParser:
         self._parser.add_argument(
             "--conky", help="Output a string for conky's execpi", action="store_true"
         )
+        self._parser.add_argument(
+            "--conky-error-color", help="Color to use for error background", action="store", default="#ff0000",
+        )
 
     def _combine_date(
         self, time: Optional[datetime.time]
@@ -171,6 +174,7 @@ class ArgumentParser:
         self.debug = parsed.debug
         self.pager = not parsed.no_pager
         self.conky = parsed.conky
+        self.conky_error_color = parsed.conky_error_color
 
         time_pattern = r"(\d\d?:\d\d?|/|now)"
         timespan_re = re.compile(f"{time_pattern}-{time_pattern}")

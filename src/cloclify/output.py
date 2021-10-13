@@ -118,14 +118,21 @@ def conky(console, client, parser) -> None:
             parts.append('%{F' + color + '}' + project + '%{F-}')
 
     finished_count = len(entries) - len(running)
+    now = datetime.datetime.now()
+
     if finished_count:
         if parts:
             parts.append("+")
         parts.append(str(finished_count))
-    elif datetime.date.today().weekday() in [5, 6]:  # weekend
+    elif running:
+        # don't need to append "none" if a task is running
+        pass
+    elif 0 <= now.date().weekday() < 5 and 8 <= now.time().hour <= 18:
+        # roughly working hours
+        parts.append("%{B<color>} none %{B-}".replace('<color>', parser.conky_error_color))
+    else:
+        # roughly non-working hours
         parts.append("none")
-    else:  # week
-        parts.append("%{B#FF0000} none %{B-}")
 
     console.print(' '.join(parts))
 
