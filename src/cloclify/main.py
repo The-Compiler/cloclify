@@ -2,6 +2,7 @@ import os
 import sys
 
 import rich.console
+import requests.exceptions
 
 from cloclify import client, output, parser, utils
 
@@ -13,7 +14,10 @@ def run() -> None:
     cliclient = client.ClockifyClient(
         debug=argparser.debug, workspace=argparser.workspace
     )
-    cliclient.fetch_info()
+    try:
+        cliclient.fetch_info()
+    except requests.exceptions.ConnectionError as e:
+        raise utils.Error(str(e))
 
     console = rich.console.Console(highlight=False)
 
