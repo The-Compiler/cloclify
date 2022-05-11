@@ -30,11 +30,9 @@ def print_entries(
     entries: Iterable[client.Entry],
     *,
     debug: bool,
-    workspace_name: str,
     highlight_ids: AbstractSet[str] = frozenset(),
     center: bool = False,
 ) -> None:
-    console.print(f"[yellow]Workspace:[/yellow] {workspace_name}\n")
     date_str = date.strftime("%a, %Y-%m-%d (week %W)")
     table = rich.table.Table(
         title=date_str,
@@ -146,6 +144,8 @@ def dump(console, client, parser) -> None:
     pager = console.pager(styles=True) if parser.pager else contextlib.nullcontext()
 
     with pager:
+        console.print(f"[yellow]Workspace:[/yellow] {client.workspace_name}")
+        console.print(separator)
         for date, day_entries in itertools.groupby(
             reversed(list(entries)), key=lambda e: e.start.date()
         ):
@@ -155,6 +155,5 @@ def dump(console, client, parser) -> None:
                 reversed(list(day_entries)),
                 debug=parser.debug,
                 center=True,
-                workspace_name=client.workspace_name,
             )
             console.print(separator)
