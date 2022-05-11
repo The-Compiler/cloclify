@@ -135,19 +135,39 @@ def conky(console, client, parser) -> None:
     console.print(' '.join(parts))
 
 
+def print_dump_filters(console, client, parser) -> None:
+    """Print an overview of configured filters."""
+    grid = rich.table.Table.grid()
+    grid.add_column()
+    grid.add_column()
+    grid.add_row("[yellow]Workspace: [/yellow]", client.workspace_name)
+    if parser.project is not None:
+        # FIXME get project color?
+        grid.add_row("[cyan]Project: [/cyan]", parser.project)
+    if parser.tags:
+        grid.add_row("[blue]Tags: [/blue]", ', '.join(parser.tags))
+
+    separator = rich.padding.Padding(rich.rule.Rule(), (0, 0, 1, 0))
+    console.print(grid)
+    console.print(separator)
+
+
 def dump(console, client, parser) -> None:
     """Dump all entries for the month given in 'date'."""
-    entries = client.get_entries_month(parser.dump)
-
     separator = rich.padding.Padding(rich.rule.Rule(), (1, 0))
-
     pager = console.pager(styles=True) if parser.pager else contextlib.nullcontext()
 
+    entries = client.get_entries_month(parser.dump)
+    filtered = [
+        entry for entry in entries
+        if (parser.project is None or entry.project == parser.project) and
+        (not parser.tags or set(parser.tags).issubset(entry.tags))
+    ]
+
     with pager:
-        console.print(f"[yellow]Workspace:[/yellow] {client.workspace_name}")
-        console.print(separator)
+        print_dump_filters(console, client, parser)
         for date, day_entries in itertools.groupby(
-            reversed(list(entries)), key=lambda e: e.start.date()
+            reversed(filtered), key=lambda e: e.start.date()
         ):
             print_entries(
                 console,

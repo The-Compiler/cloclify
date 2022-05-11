@@ -224,10 +224,13 @@ class ArgumentParser:
                 )
             elif self._billable:
                 raise utils.UsageError("Billable given without new entries")
-            elif self.project:
-                raise utils.UsageError(f"Project {self.project} given without new entries")
-            elif self.tags:
-                raise utils.UsageError(f"Tags {self.tags} given without new entries")
+
+            if not parsed.dump:
+                # Those can be used as filters
+                if self.project:
+                    raise utils.UsageError(f"Project {self.project} given without new entries")
+                elif self.tags:
+                    raise utils.UsageError(f"Tags {self.tags} given without new entries")
 
         if parsed.dump and self.date != datetime.datetime.now().date():
             raise utils.UsageError(f"Date {self.date} given with --dump")
