@@ -35,7 +35,7 @@ def print_entries(
     center: bool = False,
 ) -> None:
     console.print(f"[yellow]Workspace:[/yellow] {workspace_name}\n")
-    date_str = date.strftime("%a, %Y-%m-%d")
+    date_str = date.strftime("%a, %Y-%m-%d (week %W)")
     table = rich.table.Table(
         title=date_str,
         box=rich.box.ROUNDED,
