@@ -97,12 +97,13 @@ def print_entries(
         console.print(renderable)
 
     justify = "center" if center else None
-    console.print(f"[b]Total: {timedelta_str(total)}[/b]", justify=justify)
+    grid = rich.table.Table.grid()
+    grid.add_column()
+    grid.add_column()
+    grid.add_row("Total: ", timedelta_str(total), style="bold")
     for (proj, color), tag_total in sorted(project_totals.items()):
-        console.print(
-            f"[{color}]{proj}[/{color}]: {timedelta_str(tag_total)}",
-            justify=justify,
-        )
+        grid.add_row(f"[{color}]{proj}[/{color}]: ", timedelta_str(tag_total))
+    console.print(grid, justify=justify)
 
 
 def conky(console, client, parser) -> None:
