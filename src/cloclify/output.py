@@ -32,6 +32,7 @@ def print_entries(
     debug: bool,
     highlight_ids: AbstractSet[str] = frozenset(),
     center: bool = False,
+    only_totals: bool = False,
 ) -> None:
     date_str = date.strftime("%a, %Y-%m-%d (week %W)")
     table = rich.table.Table(
@@ -91,8 +92,9 @@ def print_entries(
 
         table.add_row(*data, style=style)
 
-    renderable = rich.align.Align(table, "center") if center else table
-    console.print(renderable)
+    if not only_totals:
+        renderable = rich.align.Align(table, "center") if center else table
+        console.print(renderable)
 
     justify = "center" if center else None
     console.print(f"[b]Total: {timedelta_str(total)}[/b]", justify=justify)
@@ -177,3 +179,13 @@ def dump(console, client, parser) -> None:
                 center=True,
             )
             console.print(separator)
+
+        # FIXME this feels a bit hackish - can we split print_entries?
+        print_entries(
+            console=console,
+            date=parser.dump,
+            entries=filtered,
+            debug=False,
+            only_totals=True,
+            center=True,
+        )
