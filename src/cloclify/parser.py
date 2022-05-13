@@ -216,6 +216,7 @@ class ArgumentParser:
                 description=self._description,
                 billable=self._billable,
                 project=self.project,
+                tags=self.tags,
             )
             for (start_time, end_time) in self._timespans
         ]
