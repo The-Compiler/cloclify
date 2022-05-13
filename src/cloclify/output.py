@@ -138,7 +138,7 @@ def conky(console, client, parser) -> None:
     console.print(' '.join(parts))
 
 
-def print_dump_filters(console, client, parser) -> None:
+def print_header(console, client, parser) -> None:
     """Print an overview of configured filters."""
     grid = rich.table.Table.grid()
     grid.add_column()
@@ -168,7 +168,7 @@ def dump(console, client, parser) -> None:
     ]
 
     with pager:
-        print_dump_filters(console, client, parser)
+        print_header(console, client, parser)
         for date, day_entries in itertools.groupby(
             reversed(filtered), key=lambda e: e.start.date()
         ):

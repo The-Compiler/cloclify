@@ -33,13 +33,13 @@ def run() -> None:
         added = set()
 
     entries = cliclient.get_entries_day(argparser.date)
+    output.print_header(console, cliclient, argparser)
     output.print_entries(
         console,
         argparser.date,
         entries,
         debug=argparser.debug,
         highlight_ids=added,
-        workspace_name=cliclient.workspace_name,
     )
 
 
