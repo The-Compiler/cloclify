@@ -1,5 +1,6 @@
 import os
 import sys
+import warnings
 
 import rich.console
 import requests.exceptions
@@ -7,7 +8,17 @@ import requests.exceptions
 from cloclify import client, output, parser, utils
 
 
+def configure_warnings() -> None:
+    # WORKAROUND for https://github.com/scrapinghub/dateparser/issues/1013
+    warnings.filterwarnings(
+        "ignore",
+        message="The localize method is no longer necessary, as this time zone supports the fold attribute",
+    )
+
+
 def run() -> None:
+    configure_warnings()
+
     argparser = parser.ArgumentParser()
     argparser.parse()
 
