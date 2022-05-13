@@ -160,7 +160,13 @@ def dump(console, client, parser) -> None:
     separator = rich.padding.Padding(rich.rule.Rule(), (1, 0))
     pager = console.pager(styles=True) if parser.pager else contextlib.nullcontext()
 
-    entries = client.get_entries_month(parser.dump)
+    if parser.dump_mode == parser.DumpMode.YEAR:
+        entries = client.get_entries_year(parser.dump)
+    elif parser.dump_mode == parser.DumpMode.MONTH:
+        entries = client.get_entries_month(parser.dump)
+    else:
+        assert False  # unreachable
+
     filtered = [
         entry for entry in entries
         if (parser.project is None or entry.project == parser.project) and

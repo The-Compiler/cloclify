@@ -227,6 +227,15 @@ class ClockifyClient:
         end = datetime.datetime.combine(last_date, datetime.time.max)
         return self._get_entries(start, end)
 
+    def get_entries_year(self, date: datetime.date) -> Iterator[Entry]:
+        assert date.month == 1, date
+        assert date.day == 1, date
+        end_date = datetime.date(date.year + 1, date.month, date.day)
+
+        start = datetime.datetime.combine(date, datetime.time())
+        end = datetime.datetime.combine(end_date, datetime.time.max)
+        return self._get_entries(start, end)
+
     def _get_entries(
         self, start: datetime.datetime, end: datetime.datetime
     ) -> Iterator[Entry]:

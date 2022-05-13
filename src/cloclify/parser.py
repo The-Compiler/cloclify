@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import enum
 import re
 from typing import List, Optional, Tuple
 
@@ -56,6 +57,11 @@ class ArgumentParser:
     $ cloclify @secretproject +collab +external $ .yesterday 13:00-17:00
     """
 
+    class DumpMode(enum.Enum):
+
+        MONTH = enum.auto()
+        YEAR = enum.auto()
+
     def __init__(self) -> None:
         self._timespans: List[Timespan] = []
         self._description: str = ""
@@ -65,6 +71,7 @@ class ArgumentParser:
         self.entries: List[client.Entry] = []
         self.debug: bool = False
         self.dump: Optional[datetime.date] = None
+        self.dump_mode: self.DumpMode = None
         self.pager: bool = True
         self.tags: List[str] = []
         self.project: Optional[str] = None
@@ -213,8 +220,14 @@ class ArgumentParser:
         if parsed.dump:
             try:
                 self.dump = datetime.datetime.strptime(parsed.dump, "%Y-%m")
+                self.dump_mode = self.DumpMode.MONTH
             except ValueError:
-                raise utils.UsageError(f"Unparseable month {parsed.dump} (use YYYY-MM)")
+                try:
+                    self.dump = datetime.datetime.strptime(parsed.dump, "%Y")
+                    self.dump_mode = self.DumpMode.YEAR
+                except ValueError:
+                    raise utils.UsageError(
+                        f"Unparseable range {parsed.dump} (use YYYY-MM or YYYY)")
 
         has_new_entries = any(entry.start is not None for entry in self.entries)
         if not has_new_entries:
