@@ -21,7 +21,7 @@ DAY_TITLE_FORMAT = "%a, %Y-%m-%d (week %W)"
 def timedelta_str(delta):
     h, rem = divmod(delta.seconds, 3600)
     m, s = divmod(rem, 60)
-    dec = h + m / 60
+    dec = delta.days * 24 + h + m / 60
     prefix = f"{delta.days} days, " if delta.days != 0 else ""
     return f"{prefix}{h:02}:{m:02}:{s:02} ({round(dec, 2)})"
 
