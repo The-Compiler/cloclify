@@ -36,6 +36,7 @@ def print_entries(
     highlight_ids: AbstractSet[str] = frozenset(),
     center: bool = False,
     only_totals: bool = False,
+    add_date: bool = False,
 ) -> None:
     table = rich.table.Table(
         title=title,
@@ -51,6 +52,8 @@ def print_entries(
     total = datetime.timedelta()
     project_totals = collections.defaultdict(datetime.timedelta)
 
+    time_format = "[b]%Y-%m-%d[/b] %H:%M" if add_date else "%H:%M"
+
     for entry in reversed(list(entries)):
         if debug:
             console.print(entry, highlight=True)
@@ -60,14 +63,14 @@ def print_entries(
         data.append(entry.description)
 
         assert entry.start is not None, entry
-        data.append(entry.start.strftime("%H:%M"))
+        data.append(entry.start.strftime(time_format))
 
         if entry.end is None:
             data.append(":clock3:")
             now = datetime.datetime.now(dateutil.tz.tzlocal())
             duration = now - entry.start
         else:
-            data.append(entry.end.strftime("%H:%M"))
+            data.append(entry.end.strftime(time_format))
             duration = entry.end - entry.start
 
         total += duration
@@ -177,16 +180,24 @@ def dump(console, client, parser) -> None:
 
     with pager:
         print_header(console, client, parser)
-        for date, day_entries in itertools.groupby(
+        for key, grouped_entries in itertools.groupby(
             reversed(filtered),
-            key=lambda e: e.start.date()
+            key=lambda e: (
+                e.start.date() if parser.dump_mode == parser.DumpMode.MONTH
+                else e.start.date().strftime("%W")
+            )
         ):
+            if parser.dump_mode == parser.DumpMode.MONTH:
+                title = key.strftime(DAY_TITLE_FORMAT)
+            else:
+                title = f"week {key}"
             print_entries(
                 console=console,
-                title=date.strftime(DAY_TITLE_FORMAT),
-                entries=reversed(list(day_entries)),
+                title=title,
+                entries=reversed(list(grouped_entries)),
                 debug=parser.debug,
                 center=True,
+                add_date=parser.dump_mode == parser.DumpMode.YEAR,
             )
             console.print(separator)
 
