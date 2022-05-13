@@ -35,9 +35,9 @@ def run() -> None:
     entries = cliclient.get_entries_day(argparser.date)
     output.print_header(console, cliclient, argparser)
     output.print_entries(
-        console,
-        argparser.date,
-        entries,
+        console=console,
+        title=argparser.date.strftime(output.DAY_TITLE_FORMAT),
+        entries=entries,
         debug=argparser.debug,
         highlight_ids=added,
     )

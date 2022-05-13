@@ -16,6 +16,9 @@ import rich.table
 from cloclify import client
 
 
+DAY_TITLE_FORMAT = "%a, %Y-%m-%d (week %W)"
+
+
 def timedelta_str(delta):
     h, rem = divmod(delta.seconds, 3600)
     m, s = divmod(rem, 60)
@@ -25,18 +28,17 @@ def timedelta_str(delta):
 
 
 def print_entries(
-    console: rich.console.Console,
-    date: datetime.date,
-    entries: Iterable[client.Entry],
     *,
+    console: rich.console.Console,
+    title: str,
+    entries: Iterable[client.Entry],
     debug: bool,
     highlight_ids: AbstractSet[str] = frozenset(),
     center: bool = False,
     only_totals: bool = False,
 ) -> None:
-    date_str = date.strftime("%a, %Y-%m-%d (week %W)")
     table = rich.table.Table(
-        title=date_str,
+        title=title,
         box=rich.box.ROUNDED,
     )
     table.add_column("Description", style="yellow")
@@ -176,12 +178,13 @@ def dump(console, client, parser) -> None:
     with pager:
         print_header(console, client, parser)
         for date, day_entries in itertools.groupby(
-            reversed(filtered), key=lambda e: e.start.date()
+            reversed(filtered),
+            key=lambda e: e.start.date()
         ):
             print_entries(
-                console,
-                date,
-                reversed(list(day_entries)),
+                console=console,
+                title=date.strftime(DAY_TITLE_FORMAT),
+                entries=reversed(list(day_entries)),
                 debug=parser.debug,
                 center=True,
             )
@@ -190,7 +193,7 @@ def dump(console, client, parser) -> None:
         # FIXME this feels a bit hackish - can we split print_entries?
         print_entries(
             console=console,
-            date=parser.dump,
+            title="",
             entries=filtered,
             debug=False,
             only_totals=True,
