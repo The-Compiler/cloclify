@@ -1,7 +1,7 @@
+import collections
 import contextlib
 import datetime
 import itertools
-import collections
 from typing import AbstractSet, Iterable
 
 import dateutil
@@ -14,7 +14,6 @@ import rich.rule
 import rich.table
 
 from cloclify import client
-
 
 DAY_TITLE_FORMAT = "%a, %Y-%m-%d (week %W)"
 
@@ -80,7 +79,9 @@ def print_entries(
         if entry.project is None:
             data.append("")
         else:
-            data.append(f"[{entry.project_color}]{entry.project}[/{entry.project_color}]")
+            data.append(
+                f"[{entry.project_color}]{entry.project}[/{entry.project_color}]"
+            )
 
         data.append(", ".join(entry.tags))
 
@@ -121,7 +122,7 @@ def conky(console, client, parser) -> None:
         for entry in running:
             project = entry.project or "Other"
             color = entry.project_color or "#fffff"
-            parts.append('%{F' + color + '}' + project + '%{F-}')
+            parts.append("%{F" + color + "}" + project + "%{F-}")
 
     finished_count = len(entries) - len(running)
     now = datetime.datetime.now()
@@ -135,12 +136,14 @@ def conky(console, client, parser) -> None:
         pass
     elif 0 <= now.date().weekday() < 5 and 8 <= now.time().hour <= 18:
         # roughly working hours
-        parts.append("%{B<color>} none %{B-}".replace('<color>', parser.conky_error_color))
+        parts.append(
+            "%{B<color>} none %{B-}".replace("<color>", parser.conky_error_color)
+        )
     else:
         # roughly non-working hours
         parts.append("none")
 
-    console.print(' '.join(parts))
+    console.print(" ".join(parts))
 
 
 def print_header(console, client, parser) -> None:
@@ -153,7 +156,7 @@ def print_header(console, client, parser) -> None:
         # FIXME get project color?
         grid.add_row("[cyan]Project: [/cyan]", parser.project)
     if parser.tags:
-        grid.add_row("[blue]Tags: [/blue]", ', '.join(parser.tags))
+        grid.add_row("[blue]Tags: [/blue]", ", ".join(parser.tags))
 
     separator = rich.padding.Padding(rich.rule.Rule(), (0, 0, 1, 0))
     console.print(grid)
@@ -173,9 +176,10 @@ def dump(console, client, parser) -> None:
         assert False  # unreachable
 
     filtered = [
-        entry for entry in entries
-        if (parser.project is None or entry.project == parser.project) and
-        (not parser.tags or set(parser.tags).issubset(entry.tags))
+        entry
+        for entry in entries
+        if (parser.project is None or entry.project == parser.project)
+        and (not parser.tags or set(parser.tags).issubset(entry.tags))
     ]
 
     with pager:
@@ -183,9 +187,10 @@ def dump(console, client, parser) -> None:
         for key, grouped_entries in itertools.groupby(
             reversed(filtered),
             key=lambda e: (
-                e.start.date() if parser.dump_mode == parser.DumpMode.MONTH
+                e.start.date()
+                if parser.dump_mode == parser.DumpMode.MONTH
                 else e.start.date().strftime("%W")
-            )
+            ),
         ):
             if parser.dump_mode == parser.DumpMode.MONTH:
                 title = key.strftime(DAY_TITLE_FORMAT)

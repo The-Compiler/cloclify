@@ -4,9 +4,9 @@ import datetime
 import os
 from typing import Any, Dict, Iterator, List, Optional, Set
 
+import dateutil.tz
 import requests
 import rich
-import dateutil.tz
 
 from cloclify import utils
 
@@ -53,7 +53,11 @@ class Entry:
 
     @classmethod
     def deserialize(
-        cls, data: Any, *, projects: Dict[str, Any], tags: Dict[str, Any],
+        cls,
+        data: Any,
+        *,
+        projects: Dict[str, Any],
+        tags: Dict[str, Any],
         user_tz: datetime.tzinfo,
     ) -> "Entry":
         entry = cls(data["description"])
@@ -122,7 +126,9 @@ class ClockifyClient:
         func = getattr(requests, verb.lower())
         response = func(f"{self.API_URL}/{path}", headers=self._headers, **kwargs)
         if not response.ok:
-            raise utils.APIError(verb.upper(), path, response.status_code, response.json())
+            raise utils.APIError(
+                verb.upper(), path, response.status_code, response.json()
+            )
 
         r_data = response.json()
         if self._debug:
@@ -262,4 +268,5 @@ class ClockifyClient:
             raise utils.UsageError(
                 f"Unknown project {project}\n"
                 f"Available projects: "
-                f"[yellow]{', '.join(self._projects_by_name)}[/yellow]")
+                f"[yellow]{', '.join(self._projects_by_name)}[/yellow]"
+            )

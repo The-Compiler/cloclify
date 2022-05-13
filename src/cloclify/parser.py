@@ -100,7 +100,10 @@ class ArgumentParser:
             "--conky", help="Output a string for conky's execpi", action="store_true"
         )
         self._parser.add_argument(
-            "--conky-error-color", help="Color to use for error background", action="store", default="#ff0000",
+            "--conky-error-color",
+            help="Color to use for error background",
+            action="store",
+            default="#ff0000",
         )
 
     def _combine_date(
@@ -227,7 +230,8 @@ class ArgumentParser:
                     self.dump_mode = self.DumpMode.YEAR
                 except ValueError:
                     raise utils.UsageError(
-                        f"Unparseable range {parsed.dump} (use YYYY-MM or YYYY)")
+                        f"Unparseable range {parsed.dump} (use YYYY-MM or YYYY)"
+                    )
 
         has_new_entries = any(entry.start is not None for entry in self.entries)
         if not has_new_entries:
@@ -241,9 +245,13 @@ class ArgumentParser:
             if not parsed.dump:
                 # Those can be used as filters
                 if self.project:
-                    raise utils.UsageError(f"Project {self.project} given without new entries")
+                    raise utils.UsageError(
+                        f"Project {self.project} given without new entries"
+                    )
                 elif self.tags:
-                    raise utils.UsageError(f"Tags {self.tags} given without new entries")
+                    raise utils.UsageError(
+                        f"Tags {self.tags} given without new entries"
+                    )
 
         if parsed.dump and self.date != datetime.datetime.now().date():
             raise utils.UsageError(f"Date {self.date} given with --dump")

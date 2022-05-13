@@ -1,9 +1,8 @@
-import os
 import sys
 import warnings
 
-import rich.console
 import requests.exceptions
+import rich.console
 
 from cloclify import client, output, parser, utils
 
