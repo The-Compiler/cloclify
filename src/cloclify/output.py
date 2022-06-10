@@ -44,6 +44,7 @@ def print_entries(
     table.add_column("Description", style="yellow")
     table.add_column("Start", style="cyan")
     table.add_column("End", style="cyan")
+    table.add_column("Duration", style="dim cyan")
     table.add_column("Project")
     table.add_column("Tags", style="blue")
     table.add_column(":gear:")  # icons
@@ -73,6 +74,8 @@ def print_entries(
             duration = entry.end - entry.start
 
         total += duration
+        data.append(timedelta_str(duration))
+
         proj_key = (entry.project or "Other", entry.project_color or "default")
         project_totals[proj_key] += duration
 
