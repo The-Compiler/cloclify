@@ -19,11 +19,15 @@ DAY_TITLE_FORMAT = "%a, %Y-%m-%d (week %V)"
 
 
 def timedelta_str(delta):
+    # Python normalizes negative timedeltas to e.g. days=-1, seconds=86155,
+    # so handle the sign explicitly to avoid "-1 days, 23:55:55".
+    sign = "-" if delta < datetime.timedelta() else ""
+    delta = abs(delta)
     h, rem = divmod(delta.seconds, 3600)
     m, s = divmod(rem, 60)
     dec = delta.days * 24 + h + m / 60
     prefix = f"{delta.days} days, " if delta.days != 0 else ""
-    return f"{prefix}{h:02}:{m:02}:{s:02} ({round(dec, 2)})"
+    return f"{sign}{prefix}{h:02}:{m:02}:{s:02} ({sign}{round(dec, 2)})"
 
 
 def print_entries(
